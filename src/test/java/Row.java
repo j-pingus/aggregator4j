@@ -1,5 +1,6 @@
 public class Row {
     @Sum("total")
+    @Sum("grand total")
     Integer value;
 
     public Row(Integer value) {

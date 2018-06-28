@@ -13,11 +13,14 @@ public class ProcessorTest {
     @Before
     public void initBusiness(){
         b=new Business();
-        b.elements=new Row[]{new Row(10),new Row(20)};
+        b.elements=new Row[]{new Row(10),null,new Row(20)};
+        b.otherElements=new Row2[]{new Row2(5),new Row2(null),new Row2(10)};
     }
     @Test
     public void test() throws Exception {
         Processor.process(b);
         Assert.assertEquals(new Integer(30), b.total);
+        Assert.assertEquals(new Integer(15), b.anotherTotal);
+        Assert.assertEquals(new Integer(45), b.grandTotal);
     }
 }

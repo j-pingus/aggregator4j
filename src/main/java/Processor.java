@@ -11,16 +11,18 @@ import java.util.Map;
 public class Processor {
     public static void process(Object o) throws Exception {
         Map<String, Formula> aggregators = new HashMap<String, Formula>();
-        process("o",o,aggregators);
+        process("o", o, aggregators);
         JexlContext localContext = new MapContext();
-        localContext.set("o",o);
+        localContext.set("o", o);
         JexlEngine jexl = new JexlBuilder().create();
-        for(Formula f:aggregators.values()){
-            jexl.createExpression(f.field+"="+f.formula).evaluate(localContext);
+        for (Formula f : aggregators.values()) {
+            System.out.println(f.formula);
+            jexl.createExpression(f.field + "=" + f.formula).evaluate(localContext);
         }
     }
 
     private static void process(String prefix, Object o, Map<String, Formula> aggregators) throws Exception {
+        if (o == null) return;
         for (Field f : o.getClass().getDeclaredFields()) {
             Aggregator a = f.getDeclaredAnnotation(Aggregator.class);
             Sum sums[] = f.getDeclaredAnnotationsByType(Sum.class);
@@ -31,17 +33,19 @@ public class Processor {
                 Formula formula = aggregators.get(a.value());
                 formula.field = prefix + "." + f.getName();
             } else if (sums != null && sums.length > 0) {
-                for (Sum sum : sums) {
-                    Formula formula = null;
-                    if (!aggregators.containsKey(sum.value())) {
-                        aggregators.put(sum.value(), new Formula(null, null));
-                    }
-                    formula = aggregators.get(sum.value());
+                if (f.get(o) != null) {
                     String add = prefix + "." + f.getName();
-                    if (formula.formula == null) {
-                        formula.formula = add;
-                    } else {
-                        formula.formula += "+" + add;
+                    for (Sum sum : sums) {
+                        Formula formula = null;
+                        if (!aggregators.containsKey(sum.value())) {
+                            aggregators.put(sum.value(), new Formula(null, null));
+                        }
+                        formula = aggregators.get(sum.value());
+                        if (formula.formula == null) {
+                            formula.formula = add;
+                        } else {
+                            formula.formula += "+" + add;
+                        }
                     }
                 }
             } else {
@@ -49,7 +53,7 @@ public class Processor {
                 if (f.getType().isArray()) {
                     int length = Array.getLength(fieldValue);
                     for (int i = 0; i < length; i++) {
-                        process(prefix + "." + f.getName() + "[" + i + "]", Array.get(fieldValue, i),aggregators);
+                        process(prefix + "." + f.getName() + "[" + i + "]", Array.get(fieldValue, i), aggregators);
                     }
                 }
             }

@@ -9,6 +9,12 @@ public class Business {
 
     Row [] elements;
 
+    public Row2[] getOtherElements() {
+        return otherElements;
+    }
+
+    Row2 [] otherElements;
+
     public void setElements(Row[] elements) {
         this.elements = elements;
     }
@@ -17,6 +23,18 @@ public class Business {
         this.total = total;
     }
 
+    public void setGrandTotal(Integer grandTotal) {
+        this.grandTotal = grandTotal;
+    }
+
+    public void setAnotherTotal(Integer anotherTotal) {
+        this.anotherTotal = anotherTotal;
+    }
+
+    @Aggregator("grand total" )
+    Integer grandTotal;
     @Aggregator("total")
     Integer total;
+    @Aggregator("total2")
+    Integer anotherTotal;
 }
