@@ -1,3 +1,7 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 public class Business {
 	@Aggregator("total")
 	Integer total;
@@ -11,7 +15,8 @@ public class Business {
 
     Row [] elements;
     public Row2 [] elements2;
-
+    public ArrayList<Row2> elements3;
+    public HashMap<String, Row> elements4;
     public void setElements(Row[] elements) {
         this.elements = elements;
     }
