@@ -1,12 +1,10 @@
-public class Row {
-    @Sum("total")
+public class Row2 {
+    @Sum("total2")
     @Sum("Grand total")
     Integer value;
-    @Sum("All my ccm2 id's")
-    public String ccm2;
-    public Row(Integer value,String ccm2) {
+
+    public Row2(Integer value) {
         this.value = value;
-        this.ccm2=ccm2;
     }
 
     public Integer getValue() {
