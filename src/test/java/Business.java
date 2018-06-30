@@ -17,7 +17,7 @@ public class Business {
     Row [] elements;
     public Row2 [] elements2;
     public ArrayList<Row2> elements3;
-    public HashSet<Row> elements4;
+    public HashSet<Rows> elements4;
     public void setElements(Row[] elements) {
         this.elements = elements;
     }

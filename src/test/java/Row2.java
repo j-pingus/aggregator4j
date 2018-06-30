@@ -1,4 +1,4 @@
-public class Row2 {
+public class Row2 extends Rows{
     @Sum("total2")
     @Sum("Grand total")
     Integer value;

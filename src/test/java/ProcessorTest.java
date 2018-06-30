@@ -15,16 +15,16 @@ public class ProcessorTest {
         b.elements2=new Row2[]{new Row2(10),new Row2(null), new Row2(5)};
         b.elements3 = new ArrayList<Row2>();
         b.elements3.add(new Row2(5));
-        b.elements4 = new HashSet<Row>();
+        b.elements4 = new HashSet<Rows>();
         b.elements4.add(new Row(7,"c"));
-        b.elements4.add(new Row(2,"d"));
+        b.elements4.add(new Row2(2));
     }
     @Test
     public void test() throws Exception {
         Processor.process(b);
-        Assert.assertEquals(new Integer(39), b.total);
-        Assert.assertEquals(new Integer(20), b.total2);
+        Assert.assertEquals(new Integer(37), b.total);
+        Assert.assertEquals(new Integer(22), b.total2);
         Assert.assertEquals(new Integer(59), b.myGrandTotal.sum);
-        Assert.assertEquals("abcd", b.ccm2);
+        Assert.assertEquals("abc", b.ccm2);
     }
 }
