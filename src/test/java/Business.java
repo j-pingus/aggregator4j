@@ -1,7 +1,4 @@
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 public class Business {
 	@Aggregator("total")
@@ -18,6 +15,7 @@ public class Business {
     public Row2 [] elements2;
     public ArrayList<Row2> elements3;
     public HashSet<Rows> elements4;
+    public Dictionary<String,Rows> elements5;
     public void setElements(Row[] elements) {
         this.elements = elements;
     }

@@ -11,90 +11,102 @@ import java.util.List;
 import java.util.Map;
 
 public class Processor {
-	public static void process(Object o) throws Exception {
-		Map<String, Formula> aggregators = new HashMap<String, Formula>();
-		JexlContext localContext = new MapContext();
-		process("o", o, aggregators, localContext);
-		localContext.set("o", o);
-		JexlEngine jexl = new JexlBuilder().create();
-		for (Formula f : aggregators.values()) {
-			System.out.println(f.field + "=" + f.formula);
-			jexl.createExpression(f.field + "=" + f.formula).evaluate(localContext);
-		}
-	}
+    public static void process(Object o) throws Exception {
+        Map<String, Formula> aggregators = new HashMap<String, Formula>();
+        JexlContext localContext = new MapContext();
+        process("o", o, aggregators, localContext);
+        localContext.set("o", o);
+        JexlEngine jexl = new JexlBuilder().create();
+        for (Formula f : aggregators.values()) {
+            System.out.println(f.field + "=" + f.formula);
+            jexl.createExpression(f.field + "=" + f.formula).evaluate(localContext);
+        }
+    }
 
-	private static void process(String prefix, Object o, Map<String, Formula> aggregators, JexlContext localContext)
-			throws Exception {
-		if (o == null)
-			return;
-		for (Field f : o.getClass().getDeclaredFields()) {
-			Aggregator a = f.getDeclaredAnnotation(Aggregator.class);
-			Sum sums[] = f.getDeclaredAnnotationsByType(Sum.class);
-			if (a != null) {
-				if (!aggregators.containsKey(a.value())) {
-					aggregators.put(a.value(), new Formula(null, null));
-				}
-				Formula formula = aggregators.get(a.value());
-				formula.field = prefix + "." + f.getName();
-			} else if (sums != null && sums.length > 0) {
-				if (f.get(o) != null) {
+    private static void process(String prefix, Object o, Map<String, Formula> aggregators, JexlContext localContext)
+            throws Exception {
+        if (o == null)
+            return;
+        for (Field f : o.getClass().getDeclaredFields()) {
+            Aggregator a = f.getDeclaredAnnotation(Aggregator.class);
+            Sum sums[] = f.getDeclaredAnnotationsByType(Sum.class);
+            if (a != null) {
+                if (!aggregators.containsKey(a.value())) {
+                    aggregators.put(a.value(), new Formula(null, null));
+                }
+                Formula formula = aggregators.get(a.value());
+                formula.field = prefix + "." + f.getName();
+            } else if (sums != null && sums.length > 0) {
+                if (f.get(o) != null) {
 
-					String add = prefix + "." + f.getName();
-					for (Sum sum : sums) {
-						Formula formula = null;
-						if (!aggregators.containsKey(sum.value())) {
-							aggregators.put(sum.value(), new Formula(null, null));
-						}
-						formula = aggregators.get(sum.value());
-						if (formula.formula == null) {
-							formula.formula = add;
-						} else {
-							formula.formula += "+" + add;
-						}
-					}
-				}
-			} else {
-				Object fieldValue = f.get(o);
-				if (fieldValue != null) {
-					Class fieldClass = f.getType();
-					if (fieldClass.isArray()) {
-						int length = Array.getLength(fieldValue);
-						for (int i = 0; i < length; i++) {
-							process(prefix + "." + f.getName() + "[" + i + "]", Array.get(fieldValue, i), aggregators,
-									localContext);
-						}
-					} else if (List.class.isAssignableFrom(fieldClass)) {
-						@SuppressWarnings("rawtypes")
-						List l = (List) fieldValue;
-						for (int i = 0; i < l.size(); i++) {
-							process(prefix + "." + f.getName() + "[" + i + "]", l.get(i), aggregators, localContext);
-						}
-					} else if (Iterable.class.isAssignableFrom(fieldClass)) {
-						@SuppressWarnings("rawtypes")
-						Iterator it = ((Iterable) fieldValue).iterator();
-						int i = 0;
-						String key = prefix.replaceAll("\\.", "_") + "_"+f.getName()+"_";
-						while (it.hasNext()) {
-							String setKey = key + (i++);
-							Object iO = it.next();
-							localContext.set(setKey, iO);
-							process(setKey, iO, aggregators, localContext);
-						}
-					} else {
-						process(prefix + "." + f.getName(), f.get(o), aggregators, localContext);
-					}
-				}
-			}
-		}
-	}
+                    String add = prefix + "." + f.getName();
+                    for (Sum sum : sums) {
+                        Formula formula = null;
+                        if (!aggregators.containsKey(sum.value())) {
+                            aggregators.put(sum.value(), new Formula(null, null));
+                        }
+                        formula = aggregators.get(sum.value());
+                        if (formula.formula == null) {
+                            formula.formula = add;
+                        } else {
+                            formula.formula += "+" + add;
+                        }
+                    }
+                }
+            } else {
+                Object fieldValue = f.get(o);
+                if (fieldValue != null) {
+                    Class fieldClass = f.getType();
+                    if (fieldClass.isArray()) {
+                        int length = Array.getLength(fieldValue);
+                        for (int i = 0; i < length; i++) {
+                            process(prefix + "." + f.getName() + "[" + i + "]", Array.get(fieldValue, i), aggregators,
+                                    localContext);
+                        }
+                    } else if (List.class.isAssignableFrom(fieldClass)) {
+                        @SuppressWarnings("rawtypes")
+                        List l = (List) fieldValue;
+                        for (int i = 0; i < l.size(); i++) {
+                            process(prefix + "." + f.getName() + "[" + i + "]", l.get(i), aggregators, localContext);
+                        }
+                        //Not working ... why?
+                        //} else if (Map.class.isAssignableFrom(fieldClass)) {
+                    }else if(fieldValue instanceof Map){
+                        @SuppressWarnings("rawtypes")
+                        Map m = (Map) fieldValue;
+                        String key = prefix.replaceAll("\\.", "_") + "_" + f.getName() + "_";
+                        int i = 0;
+                        for (Object mO:m.values()) {
+                            String setKey = key + (i++);
+                            localContext.set(setKey, mO);
+                            process(setKey, mO, aggregators, localContext);
+                        }
+                    } else if (Iterable.class.isAssignableFrom(fieldClass)) {
+                        @SuppressWarnings("rawtypes")
+                        Iterator it = ((Iterable) fieldValue).iterator();
+                        int i = 0;
+                        String key = prefix.replaceAll("\\.", "_") + "_" + f.getName() + "_";
+                        while (it.hasNext()) {
+                            String setKey = key + (i++);
+                            Object iO = it.next();
+                            localContext.set(setKey, iO);
+                            process(setKey, iO, aggregators, localContext);
+                        }
+                    } else {
+                        process(prefix + "." + f.getName(), f.get(o), aggregators, localContext);
+                    }
+                }
+            }
+        }
+    }
 
-	static class Formula {
-		String field;
-		String formula;
+    static class Formula {
+        String field;
+        String formula;
 
-		public Formula(String field, String formula) {
-			this.field = field;
-			this.formula = formula;
-		}
-	}
+        public Formula(String field, String formula) {
+            this.field = field;
+            this.formula = formula;
+        }
+    }
 }
