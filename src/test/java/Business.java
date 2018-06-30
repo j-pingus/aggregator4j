@@ -1,20 +1,22 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 public class Business {
+	@Aggregator("total")
+	Integer total;
     public Row[] getElements() {
         return elements;
     }
-
+    public GrandTotal myGrandTotal=new GrandTotal();
     public Integer getTotal() {
         return total;
     }
 
     Row [] elements;
-
-    public Row2[] getOtherElements() {
-        return otherElements;
-    }
-
-    Row2 [] otherElements;
-
+    public Row2 [] elements2;
+    public ArrayList<Row2> elements3;
+    public HashMap<String, Row> elements4;
     public void setElements(Row[] elements) {
         this.elements = elements;
     }
@@ -23,18 +25,8 @@ public class Business {
         this.total = total;
     }
 
-    public void setGrandTotal(Integer grandTotal) {
-        this.grandTotal = grandTotal;
-    }
-
-    public void setAnotherTotal(Integer anotherTotal) {
-        this.anotherTotal = anotherTotal;
-    }
-
-    @Aggregator("grand total" )
-    Integer grandTotal;
-    @Aggregator("total")
-    Integer total;
     @Aggregator("total2")
-    Integer anotherTotal;
+    public Integer total2;
+    @Aggregator("All my ccm2 id's")
+    public String ccm2;
 }
