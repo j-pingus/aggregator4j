@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 public class Business {
@@ -16,7 +17,7 @@ public class Business {
     Row [] elements;
     public Row2 [] elements2;
     public ArrayList<Row2> elements3;
-    public HashMap<String, Row> elements4;
+    public HashSet<Row> elements4;
     public void setElements(Row[] elements) {
         this.elements = elements;
     }

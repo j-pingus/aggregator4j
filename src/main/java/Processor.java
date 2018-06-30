@@ -73,7 +73,7 @@ public class Processor {
 						@SuppressWarnings("rawtypes")
 						Iterator it = ((Iterable) fieldValue).iterator();
 						int i = 0;
-						String key = prefix.replaceAll("\\.", "_") + "_";
+						String key = prefix.replaceAll("\\.", "_") + "_"+f.getName()+"_";
 						while (it.hasNext()) {
 							String setKey = key + (i++);
 							Object iO = it.next();
