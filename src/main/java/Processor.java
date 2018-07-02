@@ -5,60 +5,46 @@ import org.apache.commons.jexl3.MapContext;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Processor {
-    public static void process(Object o) throws Exception {
-        Map<String, Formula> aggregators = new HashMap<String, Formula>();
-        JexlContext localContext = new MapContext();
-        process("o", o, aggregators, localContext);
-        localContext.set("o", o);
+    public static AggregatorContext process(Object o)throws Exception{
+        return process(o, new AggregatorContext());
+    }
+    public static AggregatorContext process(Object o,AggregatorContext aggregatorContext) throws Exception {
+        Map<String, String> executors = new HashMap<>();
+        process("o", o, aggregatorContext, executors, aggregatorContext);
+        aggregatorContext.set("o", o);
         JexlEngine jexl = new JexlBuilder().create();
-        for (String aggregator : aggregators.keySet()) {
-            Formula f = aggregators.get(aggregator);
-            System.out.println(aggregator + ":" + f.field + "=" + f.formula);
-            if (f.field == null)
-                System.out.println("-->skipped, no destination field");
-            else
-                jexl.createExpression(f.field + "=" + f.formula).evaluate(localContext);
+        for (String field : executors.keySet()) {
+            String formula = executors.get(field);
+            System.out.println(field + "=" + formula);
+            jexl.createExpression(field + "=" + formula).evaluate(aggregatorContext);
         }
+        return aggregatorContext;
     }
 
-    private static void process(String prefix, Object o, Map<String, Formula> aggregators, JexlContext localContext)
+    private static void process(String prefix, Object o, AggregatorContext aggregatorContext, Map<String, String> executorsMap, JexlContext localContext)
             throws Exception {
         if (o == null || o.getClass().isPrimitive())
             return;
         if (o.getClass().getPackage() != null && "java.lang".equals(o.getClass().getPackage().getName()))
             return;
         for (Field f : o.getClass().getDeclaredFields()) {
-            Aggregator a = f.getDeclaredAnnotation(Aggregator.class);
+            Execute executors[] = f.getDeclaredAnnotationsByType(Execute.class);
             Collect collects[] = f.getDeclaredAnnotationsByType(Collect.class);
-            if (a != null) {
-                if (applicable(o, a.when())) {
-                    if (!aggregators.containsKey(a.value())) {
-                        aggregators.put(a.value(), new Formula(null, null));
+            if (executors != null && executors.length > 0) {
+                for (Execute execute : executors) {
+                    if (applicable(o, execute.when())) {
+                        executorsMap.put(prefix + "." + f.getName(), execute.value());
                     }
-                    Formula formula = aggregators.get(a.value());
-                    formula.field = prefix + "." + f.getName();
                 }
             } else if (collects != null && collects.length > 0) {
                 if (f.get(o) != null) {
                     String add = prefix + "." + f.getName();
                     for (Collect collect : collects) {
                         if (applicable(o, collect.when())) {
-                            Formula formula = null;
-                            if (!aggregators.containsKey(collect.value())) {
-                                aggregators.put(collect.value(), new Formula(null, null));
-                            }
-                            formula = aggregators.get(collect.value());
-                            if (formula.formula == null) {
-                                formula.formula = add;
-                            } else {
-                                formula.formula += "+" + add;
-                            }
+                            aggregatorContext.addFormula(collect.value(), add);
                         }
                     }
                 }
@@ -69,14 +55,14 @@ public class Processor {
                     if (fieldClass.isArray()) {
                         int length = Array.getLength(fieldValue);
                         for (int i = 0; i < length; i++) {
-                            process(prefix + "." + f.getName() + "[" + i + "]", Array.get(fieldValue, i), aggregators,
+                            process(prefix + "." + f.getName() + "[" + i + "]", Array.get(fieldValue, i), aggregatorContext, executorsMap,
                                     localContext);
                         }
                     } else if (List.class.isAssignableFrom(fieldClass)) {
                         @SuppressWarnings("rawtypes")
                         List l = (List) fieldValue;
                         for (int i = 0; i < l.size(); i++) {
-                            process(prefix + "." + f.getName() + "[" + i + "]", l.get(i), aggregators, localContext);
+                            process(prefix + "." + f.getName() + "[" + i + "]", l.get(i), aggregatorContext, executorsMap, localContext);
                         }
                         //Not working ... why?
                         //} else if (Map.class.isAssignableFrom(fieldClass)) {
@@ -88,7 +74,7 @@ public class Processor {
                         for (Object mO : m.values()) {
                             String setKey = key + (i++);
                             localContext.set(setKey, mO);
-                            process(setKey, mO, aggregators, localContext);
+                            process(setKey, mO, aggregatorContext, executorsMap, localContext);
                         }
                     } else if (Iterable.class.isAssignableFrom(fieldClass)) {
                         @SuppressWarnings("rawtypes")
@@ -99,15 +85,16 @@ public class Processor {
                             String setKey = key + (i++);
                             Object iO = it.next();
                             localContext.set(setKey, iO);
-                            process(setKey, iO, aggregators, localContext);
+                            process(setKey, iO, aggregatorContext, executorsMap, localContext);
                         }
                     } else {
-                        process(prefix + "." + f.getName(), f.get(o), aggregators, localContext);
+                        process(prefix + "." + f.getName(), f.get(o), aggregatorContext, executorsMap, localContext);
                     }
                 }
             }
         }
     }
+
 
     private static boolean applicable(Object o, String when) {
         if (when == null || "".equals(when)) return true;
@@ -118,13 +105,4 @@ public class Processor {
         return ret;
     }
 
-    static class Formula {
-        String field;
-        String formula;
-
-        public Formula(String field, String formula) {
-            this.field = field;
-            this.formula = formula;
-        }
-    }
 }

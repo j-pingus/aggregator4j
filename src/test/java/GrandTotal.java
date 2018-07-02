@@ -1,8 +1,8 @@
 public class GrandTotal {
-    @Aggregator(value = "Grand total A", when = "this.ccm2=='a'")
-    @Aggregator(value = "Grand total B", when = "this.ccm2=='b'")
-    @Aggregator(value = "Grand total C", when = "this.ccm2=='c'")
-    @Aggregator(value = "Grand total D", when = "this.ccm2=='d'")
+    @Execute(value = "sum('Grand total A')", when = "this.ccm2=='a'")
+    @Execute(value = "sum('Grand total B')", when = "this.ccm2=='b'")
+    @Execute(value = "sum('Grand total C')", when = "this.ccm2=='c'")
+    @Execute(value = "sum('Grand total D')", when = "this.ccm2=='d'")
     public Integer sum;
 
     public String getCcm2() {

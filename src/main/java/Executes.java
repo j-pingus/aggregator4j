@@ -4,6 +4,6 @@ import java.lang.annotation.*;
         RetentionPolicy.RUNTIME
 )
 @Target(ElementType.FIELD)
-public @interface Aggregators{
-    Aggregator[] value();
+public @interface Executes {
+    Execute[] value();
 }

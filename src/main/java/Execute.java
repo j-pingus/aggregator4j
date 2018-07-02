@@ -4,8 +4,8 @@ import java.lang.annotation.*;
         RetentionPolicy.RUNTIME
 )
 @Target(ElementType.FIELD)
-@Repeatable(Aggregators.class)
-public @interface Aggregator {
+@Repeatable(Executes.class)
+public @interface Execute {
     String value();
     String when() default "" ;
 }

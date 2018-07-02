@@ -1,7 +1,7 @@
 import java.util.*;
 
 public class Business {
-	@Aggregator("total")
+	@Execute("sum('total')")
 	Integer total;
     public Row[] getElements() {
         return elements;
@@ -24,8 +24,14 @@ public class Business {
         this.total = total;
     }
 
-    @Aggregator("total2")
+    @Execute("sum('total2')")
     public Integer total2;
-    @Aggregator("All my ccm2 id's")
+    @Execute("count('total2')*2")
+    public Integer doubleCount;
+    @Execute("avg('total2')")
+    public double avg2;
+    @Execute("my:rate(sum('total2'))")
+    public double rate;
+    @Execute("'['+join(',','All my ccm2 ids')+']'")
     public String ccm2;
 }
