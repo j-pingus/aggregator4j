@@ -17,39 +17,48 @@ public class Processor {
         process("o", o, aggregators, localContext);
         localContext.set("o", o);
         JexlEngine jexl = new JexlBuilder().create();
-        for (Formula f : aggregators.values()) {
-            System.out.println(f.field + "=" + f.formula);
-            jexl.createExpression(f.field + "=" + f.formula).evaluate(localContext);
+        for (String aggregator : aggregators.keySet()) {
+            Formula f = aggregators.get(aggregator);
+            System.out.println(aggregator + ":" + f.field + "=" + f.formula);
+            if (f.field == null)
+                System.out.println("-->skipped, no destination field");
+            else
+                jexl.createExpression(f.field + "=" + f.formula).evaluate(localContext);
         }
     }
 
     private static void process(String prefix, Object o, Map<String, Formula> aggregators, JexlContext localContext)
             throws Exception {
-        if (o == null)
+        if (o == null || o.getClass().isPrimitive())
+            return;
+        if (o.getClass().getPackage() != null && "java.lang".equals(o.getClass().getPackage().getName()))
             return;
         for (Field f : o.getClass().getDeclaredFields()) {
             Aggregator a = f.getDeclaredAnnotation(Aggregator.class);
-            Sum sums[] = f.getDeclaredAnnotationsByType(Sum.class);
+            Collect collects[] = f.getDeclaredAnnotationsByType(Collect.class);
             if (a != null) {
-                if (!aggregators.containsKey(a.value())) {
-                    aggregators.put(a.value(), new Formula(null, null));
+                if (applicable(o, a.when())) {
+                    if (!aggregators.containsKey(a.value())) {
+                        aggregators.put(a.value(), new Formula(null, null));
+                    }
+                    Formula formula = aggregators.get(a.value());
+                    formula.field = prefix + "." + f.getName();
                 }
-                Formula formula = aggregators.get(a.value());
-                formula.field = prefix + "." + f.getName();
-            } else if (sums != null && sums.length > 0) {
+            } else if (collects != null && collects.length > 0) {
                 if (f.get(o) != null) {
-
                     String add = prefix + "." + f.getName();
-                    for (Sum sum : sums) {
-                        Formula formula = null;
-                        if (!aggregators.containsKey(sum.value())) {
-                            aggregators.put(sum.value(), new Formula(null, null));
-                        }
-                        formula = aggregators.get(sum.value());
-                        if (formula.formula == null) {
-                            formula.formula = add;
-                        } else {
-                            formula.formula += "+" + add;
+                    for (Collect collect : collects) {
+                        if (applicable(o, collect.when())) {
+                            Formula formula = null;
+                            if (!aggregators.containsKey(collect.value())) {
+                                aggregators.put(collect.value(), new Formula(null, null));
+                            }
+                            formula = aggregators.get(collect.value());
+                            if (formula.formula == null) {
+                                formula.formula = add;
+                            } else {
+                                formula.formula += "+" + add;
+                            }
                         }
                     }
                 }
@@ -71,12 +80,12 @@ public class Processor {
                         }
                         //Not working ... why?
                         //} else if (Map.class.isAssignableFrom(fieldClass)) {
-                    }else if(fieldValue instanceof Map){
+                    } else if (fieldValue instanceof Map) {
                         @SuppressWarnings("rawtypes")
                         Map m = (Map) fieldValue;
                         String key = prefix.replaceAll("\\.", "_") + "_" + f.getName() + "_";
                         int i = 0;
-                        for (Object mO:m.values()) {
+                        for (Object mO : m.values()) {
                             String setKey = key + (i++);
                             localContext.set(setKey, mO);
                             process(setKey, mO, aggregators, localContext);
@@ -98,6 +107,15 @@ public class Processor {
                 }
             }
         }
+    }
+
+    private static boolean applicable(Object o, String when) {
+        if (when == null || "".equals(when)) return true;
+        JexlContext localContext = new MapContext();
+        localContext.set("o", o);
+        JexlEngine jexl = new JexlBuilder().create();
+        Boolean ret = new Boolean(jexl.createExpression(when.replaceAll("this\\.", "o.")).evaluate(localContext).toString());
+        return ret;
     }
 
     static class Formula {

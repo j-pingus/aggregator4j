@@ -6,7 +6,7 @@ public class Business {
     public Row[] getElements() {
         return elements;
     }
-    public GrandTotal myGrandTotal=new GrandTotal();
+    public Map<String,GrandTotal> myGrandTotals;
     public Integer getTotal() {
         return total;
     }

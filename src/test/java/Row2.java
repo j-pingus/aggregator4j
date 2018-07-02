@@ -1,6 +1,6 @@
 public class Row2 extends Rows{
-    @Sum("total2")
-    @Sum("Grand total")
+    @Collect("total2")
+    @Collect("Grand total")
     Integer value;
 
     public Row2(Integer value) {

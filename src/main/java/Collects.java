@@ -7,6 +7,6 @@ import java.lang.annotation.Target;
         RetentionPolicy.RUNTIME
 )
 @Target(ElementType.FIELD)
-public @interface Sums {
-    Sum[] value();
+public @interface Collects {
+    Collect[] value();
 }

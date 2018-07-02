@@ -12,6 +12,10 @@ public class ProcessorTest {
     @Before
     public void initBusiness(){
         b=new Business();
+        b.myGrandTotals=new HashMap<>();
+        b.myGrandTotals.put("a",new GrandTotal(0,"a"));
+        b.myGrandTotals.put("b",new GrandTotal(0,"b"));
+        b.myGrandTotals.put("c",new GrandTotal(0,"c"));
         b.elements=new Row[]{new Row(10,"a"),null,new Row(20,"b")};
         b.elements2=new Row2[]{new Row2(10),new Row2(null), new Row2(5)};
         b.elements3 = new ArrayList<Row2>();
@@ -20,7 +24,7 @@ public class ProcessorTest {
         b.elements4.add(new Row(7,"c"));
         b.elements4.add(new Row2(2));
         b.elements5 = new Hashtable<>();
-        b.elements5.put("a",new Row(1,"d"));
+        b.elements5.put("a",new Row(1,"a"));
         b.elements5.put("b",new Row2(3));
     }
     @Test
@@ -28,7 +32,9 @@ public class ProcessorTest {
         Processor.process(b);
         Assert.assertEquals(new Integer(38), b.total);
         Assert.assertEquals(new Integer(25), b.total2);
-        Assert.assertEquals(new Integer(63), b.myGrandTotal.sum);
-        Assert.assertEquals("abcd", b.ccm2);
+        Assert.assertEquals(new Integer(11), b.myGrandTotals.get("a").sum);
+        Assert.assertEquals(new Integer(20), b.myGrandTotals.get("b").sum);
+        Assert.assertEquals(new Integer(7), b.myGrandTotals.get("c").sum);
+        Assert.assertEquals("abca", b.ccm2);
     }
 }

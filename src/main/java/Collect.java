@@ -4,7 +4,8 @@ import java.lang.annotation.*;
         RetentionPolicy.RUNTIME
 )
 @Target(ElementType.FIELD)
-@Repeatable(Sums.class)
-public @interface Sum {
+@Repeatable(Collects.class)
+public @interface Collect {
     String value();
+    String when() default "" ;
 }
