@@ -19,11 +19,10 @@ public class Processor {
         Map<String, String> executors = new HashMap<>();
         process("o", o, aggregatorContext, executors, aggregatorContext);
         aggregatorContext.set("o", o);
-        JexlEngine jexl = new JexlBuilder().create();
         for (String field : executors.keySet()) {
             String formula = executors.get(field);
             System.out.println(field + "=" + formula);
-            jexl.createExpression(field + "=" + formula).evaluate(aggregatorContext);
+            aggregatorContext.evaluate(field + "=" + formula);
         }
         return aggregatorContext;
     }

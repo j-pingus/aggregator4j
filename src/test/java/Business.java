@@ -1,3 +1,4 @@
+import java.math.BigDecimal;
 import java.util.*;
 
 public class Business {
@@ -34,4 +35,6 @@ public class Business {
     public double rate;
     @Execute("'['+join(',','All my ccm2 ids')+']'")
     public String ccm2;
+    @Execute("avg('Big decimal')")
+    public BigDecimal totalBig;
 }

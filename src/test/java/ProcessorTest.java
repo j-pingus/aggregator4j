@@ -2,6 +2,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,12 +51,14 @@ public class ProcessorTest {
         Assert.assertEquals(4.3333, b.avg2, 0.0001);
         Assert.assertEquals(22.822, b.rate, 0.0001);
         Assert.assertEquals("[a,b,c,a]", b.ccm2);
+        Assert.assertEquals(new Double(4.42),b.totalBig.doubleValue(),0.001);
     }
     @Test
     public void testApi()throws Exception{
         Processor.process(b.elements5, myAggregatorContext);
-        Object result = myAggregatorContext.evaluate("sum('total')+sum('total2')");
-        Assert.assertEquals(Integer.class,result.getClass());
-        Assert.assertEquals(new Integer(7),(Integer)result);
+        //Try combining custom functions together outside of the "box" with no "executor"
+        Object result = myAggregatorContext.evaluate("divide(sum('total'),sum('total2'))");
+        Assert.assertEquals(Double.class,result.getClass());
+        Assert.assertEquals(new Double(0.166),(Double)result,0.001);
     }
 }
