@@ -1,10 +1,9 @@
 import java.math.BigDecimal;
-import java.math.BigInteger;
 
 public class Row2 extends Rows{
     @Collect("total2")
     @Collect("Grand total C")
-    Integer value;
+    private Integer value;
     @Collect("Big decimal")
     public BigDecimal otherValue;
     public Row2(Integer value) {

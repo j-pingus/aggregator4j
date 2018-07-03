@@ -2,96 +2,135 @@ import org.apache.commons.jexl3.JexlBuilder;
 import org.apache.commons.jexl3.JexlContext;
 import org.apache.commons.jexl3.JexlEngine;
 import org.apache.commons.jexl3.MapContext;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class AggregatorContext implements JexlContext.NamespaceResolver, JexlContext.NamespaceFunctor, JexlContext {
-    JexlEngine jexl = new JexlBuilder().create();
-    Map<String, Object> registeredNamespaces;
-    JexlContext localContext;
-    Map<String, Aggregator> aggregators;
+public class AggregatorContext implements JexlContext.NamespaceResolver, JexlContext {
+    private Log log = LogFactory.getLog(AggregatorContext.class);
+    private JexlEngine jexl = new JexlBuilder().create();
+    private Map<String, Object> registeredNamespaces;
+    private JexlContext localContext;
+    private Map<String, Aggregator> aggregators;
 
+    /**
+     * Constructor :-)
+     */
     public AggregatorContext() {
         this.localContext = new MapContext();
         this.aggregators = new HashMap<>();
         this.registeredNamespaces = new HashMap<>();
-        register("aggregator",this);
     }
 
+    /**
+     * Register an object (or a class) to a namespace.
+     * Future call to the evaluator function will benefit from all public methods as functions in that namespace
+     *
+     * @param namespace
+     * @param o
+     */
     public void register(String namespace, Object o) {
         registeredNamespaces.put(namespace, o);
     }
 
+    /**
+     * Evaluate the expression against the context, additionally to the JEXL syntax you can use
+     * - sum
+     * - avg
+     * - count
+     * - divide
+     * - join
+     * see methods with same name in this class for more information
+     *
+     * @param expression
+     * @return
+     */
     public Object evaluate(String expression) {
         return jexl.createExpression(expression).evaluate(this);
     }
 
-    public Object join(String s, String aggregator) {
-        if (aggregators.containsKey(aggregator)) {
-            String formula = aggregators.get(aggregator).concatenate("+'" + s + "'+");
-            Object ret = evaluate(formula);
-            System.out.println("join of " + aggregator + ":" + formula + "=" + ret);
-            return ret;
-        } else {
-            System.out.println("Could not find aggregator with name '" + aggregator + "'");
-        }
-        return null;
+    /**
+     * Joins all objects that have been collected in an aggregator into a string separated by separator
+     *
+     * @param separator
+     * @param aggregator
+     * @return
+     */
+    public Object join(String separator, String aggregator) {
+        return aggregate(aggregator, "sum", a -> a.concatenate("+'" + separator + "'+") );
     }
 
-    public Double divide(Integer div, Integer div2) {
-        System.out.println("divide");
-        return div.doubleValue() / div2.doubleValue();
-    }
-
+   /**
+     * Count how many objects have been collected in an aggregator
+     *
+     * @param aggregator
+     * @return
+     */
     public Integer count(String aggregator) {
         if (aggregators.containsKey(aggregator)) {
             int ret = aggregators.get(aggregator).count();
-            System.out.println("count of " + aggregator + "=" + ret);
+            log.debug("count of " + aggregator + "=" + ret);
             return ret;
         } else {
-            System.out.println("Could not find aggregator with name '" + aggregator + "'");
+            log.warn("Could not find aggregator with name '" + aggregator + "'");
         }
         return null;
     }
 
+    /**
+     * Sum all objects collected in an aggregator (may be problematic if JEXL cannot sum those objects with "+" operand)
+     *
+     * @param aggregator
+     * @return
+     */
     public Object sum(String aggregator) {
-        if (aggregators.containsKey(aggregator)) {
-            String formula = aggregators.get(aggregator).concatenate("+");
-            Object ret = evaluate(formula);
-            System.out.println("sum of " + aggregator + ":" + formula + "=" + ret);
-            return ret;
-        } else {
-            System.out.println("Could not find aggregator with name '" + aggregator + "'");
-        }
-        return null;
+        return aggregate(aggregator, "sum", a -> a.concatenate("+") );
     }
 
+    /**
+     * does sum/count for an aggregator, result is floating point (usually double)
+     *
+     * @param aggregator
+     * @return
+     */
     public Object avg(String aggregator) {
+        return aggregate(aggregator, "avg", a -> "(" + a.concatenate("+") + ")/" + a.count() + ".0");
+    }
+
+    public Object aggregate(String aggregator, String name, AggregatorJEXLBuilder expressionBuilder) {
         if (aggregators.containsKey(aggregator)) {
             Aggregator a = aggregators.get(aggregator);
-            String formula = "(" + a.concatenate("+") + ")/" + a.count() + ".0";
-            Object ret = evaluate(formula);
-            System.out.println("avg of " + aggregator + ":" + formula + "=" + ret);
+            String expression = expressionBuilder.buildExpression(a);
+            Object ret = evaluate(expression);
+            log.debug(name + " of " + aggregator + ":" + expression + "=" + ret);
             return ret;
         } else {
-            System.out.println("Could not find aggregator with name '" + aggregator + "'");
+            log.warn("Could not find aggregator with name '" + aggregator + "'");
         }
         return null;
+
     }
 
-    protected void addFormula(String key, String formula) {
-        if (!aggregators.containsKey(key))
-            aggregators.put(key, new Aggregator());
-        aggregators.get(key).append(formula);
+    /**
+     * Used by processor to collect object references
+     *
+     * @param aggregator
+     * @param objectReference
+     */
+    protected void addFormula(String aggregator, String objectReference) {
+        if (!aggregators.containsKey(aggregator))
+            aggregators.put(aggregator, new Aggregator());
+        aggregators.get(aggregator).append(objectReference);
     }
 
     @Override
     public Object resolveNamespace(String s) {
         Object ret = registeredNamespaces.get(s);
-        return ret==null?this:ret;
+        return ret == null ? this : ret;
     }
 
     @Override
@@ -109,27 +148,29 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return localContext.has(s);
     }
 
-    @Override
-    public Object createFunctor(JexlContext jexlContext) {
-        return this;
+    public interface AggregatorJEXLBuilder {
+        String buildExpression(Aggregator a);
     }
 
-    static class Aggregator {
+    /**
+     * Inner structure of the aggregator, subject to change...
+     */
+    private static class Aggregator {
         List<String> formulas;
 
-        public Aggregator() {
+        private Aggregator() {
             this.formulas = new ArrayList<>();
         }
 
-        public void append(String formula) {
+        private void append(String formula) {
             this.formulas.add(formula);
         }
 
-        public int count() {
+        private int count() {
             return formulas.size();
         }
 
-        public String concatenate(String s) {
+        private String concatenate(String s) {
             return String.join(s, formulas);
         }
     }

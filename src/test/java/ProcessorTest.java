@@ -57,8 +57,9 @@ public class ProcessorTest {
     public void testApi()throws Exception{
         Processor.process(b.elements5, myAggregatorContext);
         //Try combining custom functions together outside of the "box" with no "executor"
-        Object result = myAggregatorContext.evaluate("divide(sum('total'),sum('total2'))");
+        Object result = myAggregatorContext.evaluate("my:divide(sum('total'),sum('total2'))");
         Assert.assertEquals(Double.class,result.getClass());
         Assert.assertEquals(new Double(0.166),(Double)result,0.001);
+        Assert.assertEquals(new Integer(2),myAggregatorContext.count("total2"));
     }
 }
