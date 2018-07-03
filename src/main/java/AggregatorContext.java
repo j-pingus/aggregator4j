@@ -21,10 +21,13 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         this.aggregators = new HashMap<>();
         this.registeredNamespaces = new HashMap<>();
     }
+    public Object evaluate(String expression){
+        return jexl.createExpression(expression).evaluate(this);
+    }
     public Object join(String s,String aggregator){
         if (aggregators.containsKey(aggregator)) {
             String formula = aggregators.get(aggregator).concatenate("+'"+s+"'+");
-            Object ret = jexl.createExpression(formula).evaluate(localContext);
+            Object ret = evaluate(formula);
             System.out.println("join of " + aggregator + ":" + formula+"="+ret);
             return ret;
         } else {
@@ -45,7 +48,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     public Object sum(String aggregator) {
         if (aggregators.containsKey(aggregator)) {
             String formula = aggregators.get(aggregator).concatenate("+");
-            Object ret = jexl.createExpression(formula).evaluate(localContext);
+            Object ret = evaluate(formula);
             System.out.println("sum of " + aggregator + ":" + formula+"="+ret);
             return ret;
         } else {
@@ -58,7 +61,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         if (aggregators.containsKey(aggregator)) {
             Aggregator a =aggregators.get(aggregator);
             String formula = "("+a.concatenate("+")+")/"+a.count()+".0";
-            Object ret = jexl.createExpression(formula).evaluate(localContext);
+            Object ret = evaluate(formula);
             System.out.println("avg of " + aggregator + ":" + formula+"="+ret);
             return ret;
         } else {
