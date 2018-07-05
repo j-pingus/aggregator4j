@@ -2,7 +2,7 @@ public class Row extends Rows {
     @Collect("All my ccm2 ids")
     public String ccm2;
     @Collect("total")
-    @Collect("eval:'Grand total '+this.ccm2")
+    @Collect(value="eval:'Grand total '+this.ccm2",when="this.ccm2 != null")
     Integer value;
 
     public Row(Integer value, String ccm2) {

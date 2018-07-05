@@ -2,7 +2,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,6 +24,7 @@ public class ProcessorTest {
         b.elements3.add(new Row2(5));
         b.elements4 = new HashSet<Rows>();
         b.elements4.add(new Row(7, "c"));
+        b.elements4.add(new Row(124, null));
         b.elements4.add(new Row2(2));
         b.elements5 = new Hashtable<>();
         b.elements5.put("a", new Row(1, "a"));
@@ -42,7 +42,7 @@ public class ProcessorTest {
     @Test
     public void test() throws Exception {
         Processor.process(b, myAggregatorContext);
-        Assert.assertEquals(new Integer(38), b.total);
+        Assert.assertEquals(new Integer(162), b.total);
         Assert.assertEquals(new Integer(26), b.total2);
         Assert.assertEquals(new Integer(11), b.myGrandTotals.get("a").sum);
         Assert.assertEquals(new Integer(20), b.myGrandTotals.get("b").sum);
@@ -51,16 +51,21 @@ public class ProcessorTest {
         Assert.assertEquals(4.3333, b.avg2, 0.0001);
         Assert.assertEquals(22.822, b.rate, 0.0001);
         Assert.assertEquals("[a,b,c,a]", b.ccm2);
-        Assert.assertEquals(new Double(4.42),b.totalBig.doubleValue(),0.001);
-        System.out.println("Aggregators :"+myAggregatorContext.aggregators());
+        Assert.assertEquals(new Double(4.42), b.totalBig.doubleValue(), 0.001);
+        System.out.println("Aggregators :" + myAggregatorContext.aggregators());
     }
+
     @Test
-    public void testApi()throws Exception{
+    public void testApi() throws Exception {
         Processor.process(b.elements5, myAggregatorContext);
         //Try combining custom functions together outside of the "box" with no "executor"
         Object result = myAggregatorContext.evaluate("my:divide(sum('total'),sum('total2'))");
-        Assert.assertEquals(Double.class,result.getClass());
-        Assert.assertEquals(new Double(0.166),(Double)result,0.001);
-        Assert.assertEquals(new Integer(2),myAggregatorContext.count("total2"));
+        Assert.assertEquals(Double.class, result.getClass());
+        Assert.assertEquals(new Double(0.166), (Double) result, 0.001);
+        Assert.assertEquals(new Integer(2), myAggregatorContext.count("total2"));
+        Object ret[] = myAggregatorContext.asArray("All my ccm2 ids");
+        Assert.assertEquals(myAggregatorContext.count("All my ccm2 ids").intValue(), ret.length);
+        Assert.assertEquals(String.class, ret[0].getClass());
+
     }
 }

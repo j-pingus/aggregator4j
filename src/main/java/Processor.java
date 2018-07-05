@@ -7,7 +7,10 @@ import org.apache.commons.logging.LogFactory;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 public class Processor {
     private static final Log LOG = LogFactory.getLog(Processor.class);
@@ -16,6 +19,7 @@ public class Processor {
      * Analyse recursively an object, collecting all the @Collects to aggregators, then executes the @Executes
      * Nulls will not be collected
      * You cannot assume wich order will be executed for the @Executes
+     *
      * @param o
      * @return an Aggregator context to be used for programmatically accessing the aggregators
      * @throws Exception
@@ -26,6 +30,7 @@ public class Processor {
 
     /**
      * same as process.  Use this method if you want to register custom methods in a namespace to your context.
+     *
      * @param o
      * @param aggregatorContext
      * @return
@@ -35,16 +40,15 @@ public class Processor {
         List<ExecuteContext> executors = new ArrayList<>();
         process("o", o, aggregatorContext, executors, aggregatorContext);
         aggregatorContext.set("o", o);
-        for (ExecuteContext executeContext:executors) {
-            String expression = executeContext.field+"="+executeContext.formula;
+        for (ExecuteContext executeContext : executors) {
+            String expression = executeContext.field + "=" + executeContext.formula;
             LOG.debug(expression);
-            aggregatorContext.set("this",executeContext.context);
             aggregatorContext.evaluate(expression);
         }
         return aggregatorContext;
     }
 
-    private static void process(String prefix, Object o, AggregatorContext aggregatorContext, List<ExecuteContext>  executeContexts, JexlContext localContext)
+    private static void process(String prefix, Object o, AggregatorContext aggregatorContext, List<ExecuteContext> executeContexts, JexlContext localContext)
             throws Exception {
         if (o == null || o.getClass().isPrimitive())
             return;
@@ -92,21 +96,21 @@ public class Processor {
             for (Field f : o.getClass().getDeclaredFields()) {
                 Execute executors[] = f.getDeclaredAnnotationsByType(Execute.class);
                 Collect collects[] = f.getDeclaredAnnotationsByType(Collect.class);
-                if( executors != null && collects != null && executors.length>0 && collects.length>0){
-                    throw new Error("Field "+f+" cannot be @Collect and @Execute at the same time");
+                if (executors != null && collects != null && executors.length > 0 && collects.length > 0) {
+                    throw new Error("Field " + f + " cannot be @Collect and @Execute at the same time");
                 }
                 if (executors != null && executors.length > 0) {
                     for (Execute execute : executors) {
                         if (applicable(o, execute.when())) {
-                            executeContexts.add(new ExecuteContext(o,prefix + "." + f.getName(), execute.value()));
+                            executeContexts.add(new ExecuteContext(prefix , f.getName(), execute.value()));
                         }
                     }
                 } else if (collects != null && collects.length > 0) {
-                    if (!isNull(f,o)) {
+                    if (!isNull(f, o)) {
                         String add = prefix + "." + f.getName();
                         for (Collect collect : collects) {
                             if (applicable(o, collect.when())) {
-                                aggregatorContext.addFormula(evaluate(o,collect.value()), add);
+                                aggregatorContext.addFormula(evaluate(o, collect.value()), add);
                             }
                         }
                     }
@@ -118,8 +122,8 @@ public class Processor {
     }
 
     private static String evaluate(Object o, String value) {
-        if(value==null || "".equals("value"))return null;
-        if(!value.startsWith("eval:")){
+        if (value == null || "".equals("value")) return null;
+        if (!value.startsWith("eval:")) {
             return value;
         }
         JexlContext localContext = new MapContext();
@@ -128,35 +132,34 @@ public class Processor {
         return jexl.createExpression(value.substring(5)).evaluate(localContext).toString();
     }
 
-    private static  boolean isNull(Field f, Object o) throws IllegalAccessException{
+    private static boolean isNull(Field f, Object o) throws IllegalAccessException {
         boolean accessible = f.isAccessible();
         try {
             f.setAccessible(true);
-            LOG.debug("Accessing "+f+" accessible:"+accessible);
+            LOG.debug("Accessing " + f + " accessible:" + accessible);
             return f.get(o) == null;
-        }finally{
+        } finally {
             f.setAccessible(accessible);
         }
     }
+
     private static boolean applicable(Object o, String when) {
         if (when == null || "".equals(when)) return true;
         JexlContext localContext = new MapContext();
         localContext.set("this", o);
         JexlEngine jexl = new JexlBuilder().create();
         Boolean ret = new Boolean(jexl.createExpression(when).evaluate(localContext).toString());
-        LOG.debug("applicable :"+when+" is "+ret);
+        LOG.debug("applicable :" + when + " is " + ret);
         return ret;
     }
 
     private static class ExecuteContext {
-        Object context;
         String field;
         String formula;
 
-        public ExecuteContext(Object context, String field, String formula) {
-            this.context = context;
-            this.field = field;
-            this.formula = formula;
+        public ExecuteContext(String parent, String field, String formula) {
+            this.field = parent + "." + field;
+            this.formula = formula.replaceAll("this\\.", parent + ".");
         }
     }
 }
