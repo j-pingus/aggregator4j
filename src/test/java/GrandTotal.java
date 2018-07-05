@@ -1,8 +1,5 @@
 public class GrandTotal {
-    @Execute(value = "sum('Grand total A')", when = "this.ccm2=='a'")
-    @Execute(value = "sum('Grand total B')", when = "this.ccm2=='b'")
-    @Execute(value = "sum('Grand total C')", when = "this.ccm2=='c'")
-    @Execute(value = "sum('Grand total D')", when = "this.ccm2=='d'")
+    @Execute(value = "sum('Grand total '+this.ccm2)")
     public Integer sum;
 
     public String getCcm2() {

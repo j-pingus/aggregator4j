@@ -2,7 +2,7 @@ import java.math.BigDecimal;
 
 public class Row2 extends Rows{
     @Collect("total2")
-    @Collect("Grand total C")
+    @Collect("Grand total c")
     private Integer value;
     @Collect("Big decimal")
     public BigDecimal otherValue;

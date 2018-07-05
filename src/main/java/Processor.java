@@ -7,10 +7,7 @@ import org.apache.commons.logging.LogFactory;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Processor {
     private static final Log LOG = LogFactory.getLog(Processor.class);
@@ -35,18 +32,19 @@ public class Processor {
      * @throws Exception
      */
     public static AggregatorContext process(Object o, AggregatorContext aggregatorContext) throws Exception {
-        Map<String, String> executors = new HashMap<>();
+        List<ExecuteContext> executors = new ArrayList<>();
         process("o", o, aggregatorContext, executors, aggregatorContext);
         aggregatorContext.set("o", o);
-        for (String field : executors.keySet()) {
-            String formula = executors.get(field);
-            LOG.debug(field + "=" + formula);
-            aggregatorContext.evaluate(field + "=" + formula);
+        for (ExecuteContext executeContext:executors) {
+            String expression = executeContext.field+"="+executeContext.formula;
+            LOG.debug(expression);
+            aggregatorContext.set("this",executeContext.context);
+            aggregatorContext.evaluate(expression);
         }
         return aggregatorContext;
     }
 
-    private static void process(String prefix, Object o, AggregatorContext aggregatorContext, Map<String, String> executorsMap, JexlContext localContext)
+    private static void process(String prefix, Object o, AggregatorContext aggregatorContext, List<ExecuteContext>  executeContexts, JexlContext localContext)
             throws Exception {
         if (o == null || o.getClass().isPrimitive())
             return;
@@ -57,14 +55,14 @@ public class Processor {
         if (objectClass.isArray()) {
             int length = Array.getLength(o);
             for (int i = 0; i < length; i++) {
-                process(prefix + "[" + i + "]", Array.get(o, i), aggregatorContext, executorsMap,
+                process(prefix + "[" + i + "]", Array.get(o, i), aggregatorContext, executeContexts,
                         localContext);
             }
         } else if (List.class.isAssignableFrom(objectClass)) {
             @SuppressWarnings("rawtypes")
             List l = (List) o;
             for (int i = 0; i < l.size(); i++) {
-                process(prefix + "[" + i + "]", l.get(i), aggregatorContext, executorsMap, localContext);
+                process(prefix + "[" + i + "]", l.get(i), aggregatorContext, executeContexts, localContext);
             }
             //Not working ... why?
             //} else if (Map.class.isAssignableFrom(fieldClass)) {
@@ -76,7 +74,7 @@ public class Processor {
             for (Object mO : m.values()) {
                 String setKey = key + (i++);
                 localContext.set(setKey, mO);
-                process(setKey, mO, aggregatorContext, executorsMap, localContext);
+                process(setKey, mO, aggregatorContext, executeContexts, localContext);
             }
         } else if (Iterable.class.isAssignableFrom(objectClass)) {
             @SuppressWarnings("rawtypes")
@@ -87,7 +85,7 @@ public class Processor {
                 String setKey = key + (i++);
                 Object iO = it.next();
                 localContext.set(setKey, iO);
-                process(setKey, iO, aggregatorContext, executorsMap, localContext);
+                process(setKey, iO, aggregatorContext, executeContexts, localContext);
             }
         } else {
             //Check the fields they can be Collectors, Executors or simple fields to process
@@ -100,7 +98,7 @@ public class Processor {
                 if (executors != null && executors.length > 0) {
                     for (Execute execute : executors) {
                         if (applicable(o, execute.when())) {
-                            executorsMap.put(prefix + "." + f.getName(), execute.value());
+                            executeContexts.add(new ExecuteContext(o,prefix + "." + f.getName(), execute.value()));
                         }
                     }
                 } else if (collects != null && collects.length > 0) {
@@ -108,16 +106,28 @@ public class Processor {
                         String add = prefix + "." + f.getName();
                         for (Collect collect : collects) {
                             if (applicable(o, collect.when())) {
-                                aggregatorContext.addFormula(collect.value(), add);
+                                aggregatorContext.addFormula(evaluate(o,collect.value()), add);
                             }
                         }
                     }
                 } else {
-                    process(prefix + "." + f.getName(), f.get(o), aggregatorContext, executorsMap, localContext);
+                    process(prefix + "." + f.getName(), f.get(o), aggregatorContext, executeContexts, localContext);
                 }
             }
         }
     }
+
+    private static String evaluate(Object o, String value) {
+        if(value==null || "".equals("value"))return null;
+        if(!value.startsWith("eval:")){
+            return value;
+        }
+        JexlContext localContext = new MapContext();
+        localContext.set("this", o);
+        JexlEngine jexl = new JexlBuilder().create();
+        return jexl.createExpression(value.substring(5)).evaluate(localContext).toString();
+    }
+
     private static  boolean isNull(Field f, Object o) throws IllegalAccessException{
         boolean accessible = f.isAccessible();
         try {
@@ -131,10 +141,22 @@ public class Processor {
     private static boolean applicable(Object o, String when) {
         if (when == null || "".equals(when)) return true;
         JexlContext localContext = new MapContext();
-        localContext.set("o", o);
+        localContext.set("this", o);
         JexlEngine jexl = new JexlBuilder().create();
-        Boolean ret = new Boolean(jexl.createExpression(when.replaceAll("this\\.", "o.")).evaluate(localContext).toString());
+        Boolean ret = new Boolean(jexl.createExpression(when).evaluate(localContext).toString());
+        LOG.debug("applicable :"+when+" is "+ret);
         return ret;
     }
 
+    private static class ExecuteContext {
+        Object context;
+        String field;
+        String formula;
+
+        public ExecuteContext(Object context, String field, String formula) {
+            this.context = context;
+            this.field = field;
+            this.formula = formula;
+        }
+    }
 }
