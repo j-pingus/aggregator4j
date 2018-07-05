@@ -5,10 +5,7 @@ import org.apache.commons.jexl3.MapContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class AggregatorContext implements JexlContext.NamespaceResolver, JexlContext {
     private Log log = LogFactory.getLog(AggregatorContext.class);
@@ -100,6 +97,13 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return aggregate(aggregator, "avg", a -> "(" + a.concatenate("+") + ")/" + a.count() + ".0");
     }
 
+    /**
+     * all aggregators in this context
+     * @return a list of aggregator names
+     */
+    public Set<String> aggregators(){
+        return Collections.unmodifiableSet(aggregators.keySet());
+    }
     public Object aggregate(String aggregator, String name, AggregatorJEXLBuilder expressionBuilder) {
         if (aggregators.containsKey(aggregator)) {
             Aggregator a = aggregators.get(aggregator);

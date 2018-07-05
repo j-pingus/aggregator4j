@@ -52,6 +52,7 @@ public class ProcessorTest {
         Assert.assertEquals(22.822, b.rate, 0.0001);
         Assert.assertEquals("[a,b,c,a]", b.ccm2);
         Assert.assertEquals(new Double(4.42),b.totalBig.doubleValue(),0.001);
+        System.out.println("Aggregators :"+myAggregatorContext.aggregators());
     }
     @Test
     public void testApi()throws Exception{
