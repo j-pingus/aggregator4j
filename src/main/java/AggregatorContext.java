@@ -97,10 +97,16 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return aggregate(aggregator, "avg", a -> "(" + a.concatenate("+") + ")/" + a.count() + ".0");
     }
     /**
-     * As list
+     * return aggregated values As Array
      */
     public Object[] asArray(String aggregator){
-        return (Object[])aggregate(aggregator, "avg", a -> "[" + a.concatenate("+") + "]");
+        return (Object[])aggregate(aggregator, "asArray", a -> "[" + a.concatenate(",") + "]");
+    }
+    /**
+     * return aggregated values as Set
+     */
+    public Set<Object> asSet(String aggregator){
+    	return (Set<Object>)aggregate(aggregator, "asSet", a -> "{" + a.concatenate(",") + "}");
     }
     /**
      * all aggregators in this context

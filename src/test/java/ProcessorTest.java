@@ -5,6 +5,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -33,6 +34,7 @@ public class ProcessorTest {
         b.elements5.put("a", new Row(1, "a"));
         b.elements5.put("b", new Row2(3));
         b.elements5.put("c", new Row2(3));
+        b.elements5.put("d", new Row(0, "a"));
     }
 
     @Before
@@ -53,7 +55,7 @@ public class ProcessorTest {
         Assert.assertEquals(new Integer(12), b.doubleCount);
         Assert.assertEquals(4.3333, b.avg2, 0.0001);
         Assert.assertEquals(22.822, b.rate, 0.0001);
-        Assert.assertEquals("[a,b,c,a]", b.ccm2);
+        Assert.assertEquals("[a,b,c,a,a]", b.ccm2);
         Assert.assertEquals(new Double(4.42), b.totalBig.doubleValue(), 0.001);
     }
 
@@ -66,9 +68,14 @@ public class ProcessorTest {
         Assert.assertEquals(new Double(0.166), (Double) result, 0.001);
         Assert.assertEquals(new Integer(2), myAggregatorContext.count("total2"));
         Assert.assertNull(myAggregatorContext.sum("TOTO"));
-        Object ret[] = myAggregatorContext.asArray("All my ccm2 ids");
-        Assert.assertEquals(myAggregatorContext.count("All my ccm2 ids").intValue(), ret.length);
-        Assert.assertEquals(String.class, ret[0].getClass());
+        Object ccm2Array[] = myAggregatorContext.asArray("All my ccm2 ids");
+        Set<Object> ccm2Set = myAggregatorContext.asSet("All my ccm2 ids");
+        LOG.debug(Arrays.toString(ccm2Array));
+        LOG.debug(ccm2Set);
+        Assert.assertEquals(myAggregatorContext.count("All my ccm2 ids").intValue(), ccm2Array.length);
+        Assert.assertEquals(2, ccm2Array.length);
+        Assert.assertEquals(1, ccm2Set.size());
+        Assert.assertEquals(String.class, ccm2Array[0].getClass());
         Set<String> aggregators = myAggregatorContext.aggregators();
         LOG.debug(aggregators);
         Assert.assertNotNull(aggregators);
