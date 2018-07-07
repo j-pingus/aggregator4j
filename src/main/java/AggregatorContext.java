@@ -5,10 +5,7 @@ import org.apache.commons.jexl3.MapContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class AggregatorContext implements JexlContext.NamespaceResolver, JexlContext {
     private Log log = LogFactory.getLog(AggregatorContext.class);
@@ -60,7 +57,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return
      */
     public Object join(String separator, String aggregator) {
-        return aggregate(aggregator, "sum", a -> a.concatenate("+'" + separator + "'+") );
+        return aggregate(aggregator, "join", a -> a.concatenate("+'" + separator + "'+") );
     }
 
    /**
@@ -99,7 +96,19 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     public Object avg(String aggregator) {
         return aggregate(aggregator, "avg", a -> "(" + a.concatenate("+") + ")/" + a.count() + ".0");
     }
-
+    /**
+     * As list
+     */
+    public Object[] asArray(String aggregator){
+        return (Object[])aggregate(aggregator, "avg", a -> "[" + a.concatenate("+") + "]");
+    }
+    /**
+     * all aggregators in this context
+     * @return a list of aggregator names
+     */
+    public Set<String> aggregators(){
+        return Collections.unmodifiableSet(aggregators.keySet());
+    }
     public Object aggregate(String aggregator, String name, AggregatorJEXLBuilder expressionBuilder) {
         if (aggregators.containsKey(aggregator)) {
             Aggregator a = aggregators.get(aggregator);
