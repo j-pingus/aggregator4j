@@ -1,5 +1,4 @@
 import java.math.BigDecimal;
-
 public class Row2 extends Rows{
     @Collect("total2")
     @Collect("Grand total C")

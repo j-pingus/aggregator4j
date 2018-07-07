@@ -42,7 +42,6 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * - sum
      * - avg
      * - count
-     * - divide
      * - join
      * see methods with same name in this class for more information
      *

@@ -61,5 +61,6 @@ public class ProcessorTest {
         Assert.assertEquals(Double.class,result.getClass());
         Assert.assertEquals(new Double(0.166),(Double)result,0.001);
         Assert.assertEquals(new Integer(2),myAggregatorContext.count("total2"));
+        Assert.assertNull(myAggregatorContext.sum("TOTO"));
     }
 }

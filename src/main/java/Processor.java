@@ -100,7 +100,7 @@ public class Processor {
                 if (executors != null && executors.length > 0) {
                     for (Execute execute : executors) {
                         if (applicable(o, execute.when())) {
-                            executorsMap.put(prefix + "." + f.getName(), execute.value());
+                            executorsMap.put(prefix + "." + f.getName(), execute.value().replaceAll("this\\.", prefix+"."));
                         }
                     }
                 } else if (collects != null && collects.length > 0) {
