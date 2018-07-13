@@ -8,7 +8,7 @@ import org.apache.commons.logging.LogFactory;
 import java.util.*;
 
 public class AggregatorContext implements JexlContext.NamespaceResolver, JexlContext {
-    private Log log = LogFactory.getLog(AggregatorContext.class);
+    private static final Log LOGGER = LogFactory.getLog(AggregatorContext.class);
     private JexlEngine jexl = new JexlBuilder().create();
     private Map<String, Object> registeredNamespaces;
     private JexlContext localContext;
@@ -69,10 +69,10 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     public Integer count(String aggregator) {
         if (aggregators.containsKey(aggregator)) {
             int ret = aggregators.get(aggregator).count();
-            log.debug("count of " + aggregator + "=" + ret);
+            LOGGER.debug("count of " + aggregator + "=" + ret);
             return ret;
         } else {
-            log.warn("Could not find aggregator with name '" + aggregator + "'");
+            LOGGER.warn("Could not find aggregator with name '" + aggregator + "'");
         }
         return null;
     }
@@ -120,10 +120,10 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             Aggregator a = aggregators.get(aggregator);
             String expression = expressionBuilder.buildExpression(a);
             Object ret = evaluate(expression);
-            log.debug(name + " of " + aggregator + ":" + expression + "=" + ret);
+            LOGGER.debug(name + " of " + aggregator + ":" + expression + "=" + ret);
             return ret;
         } else {
-            log.warn("Could not find aggregator with name '" + aggregator + "'");
+            LOGGER.warn("Could not find aggregator with name '" + aggregator + "'");
         }
         return null;
 
@@ -187,5 +187,18 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         private String concatenate(String s) {
             return String.join(s, formulas);
         }
+
+		public void clear() {
+			formulas.clear();
+			
+		}
     }
+
+	public void cleanContext(String value) {
+		for(String key:aggregators.keySet()) {
+			if(key.startsWith(value+".")) {
+				aggregators.get(key).clear();
+			}
+		}
+	}
 }
