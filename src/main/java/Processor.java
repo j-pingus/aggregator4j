@@ -1,13 +1,10 @@
-import org.apache.commons.jexl3.JexlBuilder;
-import org.apache.commons.jexl3.JexlContext;
-import org.apache.commons.jexl3.JexlEngine;
-import org.apache.commons.jexl3.MapContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +22,7 @@ public class Processor {
 	 *         aggregators
 	 */
 	public static AggregatorContext process(Object o) {
-		return process(o, new AggregatorContext());
+		return process(o, o.getClass().getSimpleName(), new AggregatorContext(true));
 	}
 
 	/**
@@ -36,26 +33,29 @@ public class Processor {
 	 * @param aggregatorContext
 	 * @return
 	 */
-	public static AggregatorContext process(Object o, AggregatorContext aggregatorContext) {
-		List<ExecuteContext> executors = new ArrayList<>();
-		try {
-			aggregatorContext.set("o", o);
-			process("o", o, aggregatorContext, executors, aggregatorContext);
-			for (ExecuteContext executeContext : executors) {
-				if (executeContext.executed == false) {
-					String expression = executeContext.field + "=" + executeContext.formula;
-					LOGGER.debug("Evaluating :" + expression);
-					aggregatorContext.evaluate(expression);
+	public static AggregatorContext process(Object o, String prefix, AggregatorContext aggregatorContext) {
+			aggregatorContext.startProcess();
+			try {
+				List<ExecuteContext> executors = new ArrayList<>();
+				try {
+					aggregatorContext.set(prefix, o);
+					process(prefix, o, aggregatorContext, executors);
+					for (ExecuteContext executeContext : executors) {
+						if (executeContext.executed == false) {
+							aggregatorContext.execute(executeContext.field, executeContext.formula);
+						}
+					}
+				} catch (IllegalAccessException e) {
+					LOGGER.error("Could not process object " + o, e);
 				}
+				return aggregatorContext;
+			} finally {
+				aggregatorContext.endProcess();
 			}
-		} catch (IllegalAccessException e) {
-			LOGGER.error("Could not process object " + o, e);
-		}
-		return aggregatorContext;
 	}
 
-	private static void process(String prefix, Object o, AggregatorContext aggregatorContext,
-			List<ExecuteContext> executeContexts, JexlContext localContext) throws IllegalAccessException {
+	private static void process(String prefix, Object o, AggregatorContext localContext,
+			List<ExecuteContext> executeContexts) throws IllegalAccessException {
 		if (o == null)
 			return;
 		// Check if the object is a collection
@@ -63,123 +63,150 @@ public class Processor {
 		Class objectClass = o.getClass();
 		@SuppressWarnings("unchecked")
 		Context context = (Context) objectClass.getDeclaredAnnotation(Context.class);
-		if (context != null) {
-			for (ExecuteContext executeContext : executeContexts) {
-				if (executeContext.formula.contains(context.value() + ".") && executeContext.executed == false) {
-					String expression = executeContext.field + "=" + executeContext.formula;
-					LOGGER.debug("Evaluating :" + expression);
-					aggregatorContext.evaluate(expression);
-					executeContext.executed = true;
-				}
-			}
-			aggregatorContext.cleanContext(context.value());
-		}
-		if (objectClass.isArray()) {
-			int length = Array.getLength(o);
-			for (int i = 0; i < length; i++) {
-				process(prefix + "[" + i + "]", Array.get(o, i), aggregatorContext, executeContexts, localContext);
-			}
-		} else if (List.class.isAssignableFrom(objectClass)) {
-			@SuppressWarnings("rawtypes")
-			List l = (List) o;
-			for (int i = 0; i < l.size(); i++) {
-				process(prefix + "[" + i + "]", l.get(i), aggregatorContext, executeContexts, localContext);
-			}
-			// Not working ... why?
-			// } else if (Map.class.isAssignableFrom(fieldClass)) {
-		} else if (o instanceof Map) {
-			@SuppressWarnings("rawtypes")
-			Map m = (Map) o;
-			String key = prefix.replaceAll("\\.", "_") + "_";
-			int i = 0;
-			for (Object mO : m.values()) {
-				String setKey = key + (i++);
-				localContext.set(setKey, mO);
-				process(setKey, mO, aggregatorContext, executeContexts, localContext);
-			}
-		} else if (Iterable.class.isAssignableFrom(objectClass)) {
-			@SuppressWarnings("rawtypes")
-			Iterator it = ((Iterable) o).iterator();
-			int i = 0;
-			String key = prefix.replaceAll("\\.", "_") + "_";
-			while (it.hasNext()) {
-				String setKey = key + (i++);
-				Object iO = it.next();
-				localContext.set(setKey, iO);
-				process(setKey, iO, aggregatorContext, executeContexts, localContext);
-			}
-		} else {
-			if (o.getClass().isPrimitive())
-				return;
-			if (o.getClass().getPackage() != null && !o.getClass().getPackage().getName()
-					.startsWith("eu.europa.ec.eac.eforms.online.data.form.model"))
-				return;
-			// Check the fields they can be Collectors, Executors or simple fields to
-			// process
-			for (Field f : o.getClass().getDeclaredFields()) {
-				Execute executors[] = f.getDeclaredAnnotationsByType(Execute.class);
-				Collect collects[] = f.getDeclaredAnnotationsByType(Collect.class);
-				if (executors != null && collects != null && executors.length > 0 && collects.length > 0) {
-					throw new Error("Field " + f + " cannot be @Collect and @Execute at the same time");
-				}
-				if (executors != null && executors.length > 0) {
-					for (Execute execute : executors) {
-						if (applicable(o, execute.when())) {
-							executeContexts.add(new ExecuteContext(prefix, f.getName(), execute.value()));
-						}
+		try {
+			if (context != null) {
+				localContext.startContext(context.value());
+				for (ExecuteContext executeContext : executeContexts) {
+					if (executeContext.formula.contains(context.value() + ".") && executeContext.executed == false) {
+						localContext.execute(executeContext.field, executeContext.formula);
+						executeContext.executed = true;
 					}
-				} else if (collects != null && collects.length > 0) {
-					if (!isNull(o, f.getName())) {
-						String add = prefix + "." + f.getName();
-						for (Collect collect : collects) {
-							if (applicable(o, collect.when())) {
-								aggregatorContext.addFormula(evaluate(o, collect.value()), add);
+				}
+				localContext.cleanContext(context.value());
+			}
+			@SuppressWarnings("unchecked")
+			Collect collectsClass[] = (Collect[]) objectClass.getDeclaredAnnotationsByType(Collect.class);
+			if (collectsClass != null && collectsClass.length > 0) {
+				for (Collect collect : collectsClass) {
+					if (applicable(o, collect.when(), localContext)) {
+						localContext.collect(evaluate(o, collect.value(), localContext),
+								collect.what().replaceAll("this\\.", prefix + "."));
+					}
+				}
+			}
+			if (objectClass.isArray()) {
+				int length = Array.getLength(o);
+				for (int i = 0; i < length; i++) {
+					process(prefix + "[" + i + "]", Array.get(o, i), localContext, executeContexts);
+				}
+			} else if (List.class.isAssignableFrom(objectClass)) {
+				@SuppressWarnings("rawtypes")
+				List l = (List) o;
+				for (int i = 0; i < l.size(); i++) {
+					process(prefix + "[" + i + "]", l.get(i), localContext, executeContexts);
+				}
+				// Not working ... why?
+				// } else if (Map.class.isAssignableFrom(fieldClass)) {
+			} else if (o instanceof Map) {
+				@SuppressWarnings("rawtypes")
+				Map m = (Map) o;
+				String key = prefix.replaceAll("\\.", "_") + "_";
+				int i = 0;
+				for (Object mO : m.values()) {
+					String setKey = key + (i++);
+					localContext.set(setKey, mO);
+					process(setKey, mO, localContext, executeContexts);
+				}
+			} else if (Iterable.class.isAssignableFrom(objectClass)) {
+				@SuppressWarnings("rawtypes")
+				Iterator it = ((Iterable) o).iterator();
+				int i = 0;
+				String key = prefix.replaceAll("\\.", "_") + "_";
+				while (it.hasNext()) {
+					String setKey = key + (i++);
+					Object iO = it.next();
+					localContext.set(setKey, iO);
+					process(setKey, iO, localContext, executeContexts);
+				}
+			} else {
+				if (o.getClass().isPrimitive())
+					return;
+				if (o.getClass().getPackage() != null
+						&& !o.getClass().getPackage().getName().startsWith("eu.europa.ec"))
+					return;
+				// Check the fields they can be Collectors, Executors or simple fields to
+				// process
+				for (Field f : getFields(o)) {
+					Execute executors[] = f.getDeclaredAnnotationsByType(Execute.class);
+					Collect collects[] = f.getDeclaredAnnotationsByType(Collect.class);
+					Variable variable = f.getDeclaredAnnotation(Variable.class);
+					if (executors != null && collects != null && executors.length > 0 && collects.length > 0) {
+						throw new Error("Field " + f + " cannot be @Collect and @Execute at the same time");
+					}
+					if (variable != null) {
+						localContext.addVariable(variable.value(), get(o, f.getName(), localContext));
+
+					}
+					if (executors != null && executors.length > 0) {
+						for (Execute execute : executors) {
+							if (applicable(o, execute.when(), localContext)) {
+								executeContexts.add(new ExecuteContext(prefix, f.getName(), execute.value()));
 							}
 						}
+					} else if (collects != null && collects.length > 0) {
+						if (!isNull(o, f.getName(), localContext)) {
+							String add = prefix + "." + f.getName();
+							for (Collect collect : collects) {
+								if (applicable(o, collect.when(), localContext)) {
+									localContext.collect(evaluate(o, collect.value(), localContext), add);
+								}
+							}
+						}
+					} else {
+						process(prefix + "." + f.getName(), get(o, f.getName(), localContext), localContext,
+								executeContexts);
 					}
-				} else {
-					process(prefix + "." + f.getName(), get(o, f.getName()), aggregatorContext, executeContexts,
-							localContext);
 				}
 			}
+		} finally {
+			if (context != null)
+				localContext.endContext(context.value());
 		}
 	}
 
-	private static Object get(Object o, String fieldName) {
+	private static List<Field> getFields(Object o) {
+		ArrayList<Field> ret = new ArrayList<>();
+		@SuppressWarnings("rawtypes")
+		Class baseClass = o.getClass();
+		while (baseClass != null && baseClass != Object.class) {
+			Collections.addAll(ret, baseClass.getDeclaredFields());
+			baseClass = baseClass.getSuperclass();
+		}
+		return ret;
+	}
+
+	private static Object get(Object o, String fieldName, AggregatorContext localContext) {
 		if (fieldName == null || "".equals(fieldName) || fieldName.contains("$"))
 			return null;
-		JexlContext localContext = new MapContext();
 		localContext.set("this", o);
-		JexlEngine jexl = new JexlBuilder().create();
-		LOGGER.debug("Get " + o.getClass() + " " + fieldName);
-		return jexl.createExpression("this." + fieldName).evaluate(localContext);
+		if (localContext.isDebug())
+			LOGGER.debug("Get " + o.getClass() + " " + fieldName);
+		return localContext.evaluate("this." + fieldName);
 
 	}
 
-	private static String evaluate(Object o, String value) {
+	private static String evaluate(Object o, String value, AggregatorContext localContext) {
 		if (value == null || "".equals(value))
 			return null;
 		if (!value.startsWith("eval:")) {
 			return value;
 		}
-		JexlContext localContext = new MapContext();
 		localContext.set("this", o);
-		JexlEngine jexl = new JexlBuilder().create();
-		return jexl.createExpression(value.substring(5)).evaluate(localContext).toString();
+		return localContext.evaluate(value.substring(5)).toString();
 	}
 
-	private static boolean isNull(Object o, String fieldName) throws IllegalAccessException {
-		return get(o, fieldName) == null;
+	private static boolean isNull(Object o, String fieldName, AggregatorContext localContext)
+			throws IllegalAccessException {
+		return get(o, fieldName, localContext) == null;
 	}
 
-	private static boolean applicable(Object o, String when) {
+	private static boolean applicable(Object o, String when, AggregatorContext localContext) {
 		if (when == null || "".equals(when))
 			return true;
-		JexlContext localContext = new MapContext();
 		localContext.set("this", o);
-		JexlEngine jexl = new JexlBuilder().create();
-		Boolean ret = new Boolean(jexl.createExpression(when).evaluate(localContext).toString());
-		LOGGER.debug("applicable :" + when + " is " + ret);
+		Boolean ret = new Boolean(localContext.evaluate(when).toString());
+		if(localContext.isDebug())
+LOGGER.debug("applicable :" + when + " is " + ret);
 		return ret;
 	}
 

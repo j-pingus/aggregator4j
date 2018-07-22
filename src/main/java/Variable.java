@@ -4,9 +4,6 @@ import java.lang.annotation.*;
         RetentionPolicy.RUNTIME
 )
 @Target({ElementType.FIELD,ElementType.TYPE})
-@Repeatable(Collects.class)
-public @interface Collect {
+public @interface Variable {
     String value();
-    String when() default "" ;
-    String what() default "this";
 }

@@ -39,14 +39,14 @@ public class ProcessorTest {
 
     @Before
     public void initContext() {
-        myAggregatorContext = new AggregatorContext();
+        myAggregatorContext = new AggregatorContext(false);
         //Adding custom functions to the context
         myAggregatorContext.register("my", Functions.class);
     }
 
     @Test
     public void test() throws Exception {
-        Processor.process(b, myAggregatorContext);
+        Processor.process(b, "b",myAggregatorContext);
         Assert.assertEquals(new Integer(162), b.total);
         Assert.assertEquals(new Integer(26), b.total2);
         Assert.assertEquals(new Integer(11), b.myGrandTotals.get("a").sum);
@@ -61,7 +61,7 @@ public class ProcessorTest {
 
     @Test
     public void testApi() throws Exception {
-        Processor.process(b.elements5, myAggregatorContext);
+        Processor.process(b.elements5, "elements5", myAggregatorContext);
         //Try combining custom functions together outside of the "box" with no "executor"
         Object result = myAggregatorContext.evaluate("my:divide(sum('total'),sum('total2'))");
         Assert.assertEquals(Double.class, result.getClass());
