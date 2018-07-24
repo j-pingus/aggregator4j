@@ -1,5 +1,6 @@
 public class Row extends Rows {
     @Collect("All my ccm2 ids")
+    @Variable("ccm2")
     public String ccm2;
     @Collect("total")
     @Collect(value="eval:'Grand total '+this.ccm2",when="this.ccm2 != null")

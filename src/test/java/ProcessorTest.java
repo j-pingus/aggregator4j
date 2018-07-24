@@ -4,17 +4,13 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.Set;
+import java.util.*;
 
 public class ProcessorTest {
+    private static final Log LOG = LogFactory.getLog(ProcessorTest.class);
     Business b;
     AggregatorContext myAggregatorContext;
-    private static final Log LOG = LogFactory.getLog(ProcessorTest.class);
+
     @Before
     public void initBusiness() {
         b = new Business();
@@ -46,7 +42,7 @@ public class ProcessorTest {
 
     @Test
     public void test() throws Exception {
-        Processor.process(b, "b",myAggregatorContext);
+        Processor.process(b, "b", myAggregatorContext);
         Assert.assertEquals(new Integer(162), b.total);
         Assert.assertEquals(new Integer(26), b.total2);
         Assert.assertEquals(new Integer(11), b.myGrandTotals.get("a").sum);
@@ -56,12 +52,21 @@ public class ProcessorTest {
         Assert.assertEquals(4.3333, b.avg2, 0.0001);
         Assert.assertEquals(22.822, b.rate, 0.0001);
         Assert.assertEquals("[a,b,c,a,a]", b.ccm2);
+        Assert.assertEquals(true, myAggregatorContext.contains("All my ccm2 ids", "a"));
         Assert.assertEquals(new Double(4.42), b.totalBig.doubleValue(), 0.001);
     }
 
     @Test
+    public void testError() throws Exception {
+        AggregatorContext context = Processor.process(b, "b", new AggregatorContext(true));
+        LOG.info("trace of execution:" + context.getLastProcessTrace());
+        context.evaluate("error");
+        context.count("whatever");
+    }
+
+    @Test
     public void testApi() throws Exception {
-        Processor.process(b.elements5, "be5",myAggregatorContext);
+        Processor.process(b.elements5, "be5", myAggregatorContext);
         //Try combining custom functions together outside of the "box" with no "executor"
         Object result = myAggregatorContext.evaluate("my:divide(sum('total'),sum('total2'))");
         Assert.assertEquals(Double.class, result.getClass());
@@ -81,9 +86,34 @@ public class ProcessorTest {
         Assert.assertNotNull(aggregators);
         Assert.assertEquals(6, aggregators.size());
         Set<String> expectedAggregators = new HashSet<>();
-        for(String eA: new String[] {"Big decimal", "total", "Grand total c", "All my ccm2 ids", "Grand total a", "total2"}) {
-        	expectedAggregators.add(eA);
+        for (String eA : new String[]{"Big decimal", "total", "Grand total c", "All my ccm2 ids", "Grand total a", "total2"}) {
+            expectedAggregators.add(eA);
         }
         Assert.assertEquals(expectedAggregators, aggregators);
+    }
+
+    @Test(expected = Error.class)
+    public void ErrorTest() {
+        Error1 err = new Error1();
+        err.test = 1;
+        Processor.process(err);
+    }
+    @Test
+    public void Error2Test() {
+        Error2 err = new Error2();
+        err.test = 1;
+        Processor.process(err);
+    }
+
+    class Error1 {
+        @Collect("test")
+        @Execute("sum('test2')")
+        int test;
+    }
+    class Error2{
+         @Collect("test")
+        int test;
+        @Execute("sum('test2')")
+        int totalTest;
     }
 }

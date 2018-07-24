@@ -269,7 +269,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 		if (debug) {
 			LOGGER.debug("got variable $" + variable);
 			processTrace.append("\"variable\":{\"name\":\"").append(variable).append("\",\"value\":\"")
-					.append(object.toString()).append("\"},");
+					.append(object==null?"null":object.toString()).append("\"},");
 		}
 	}
 
