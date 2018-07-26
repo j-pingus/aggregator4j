@@ -74,16 +74,6 @@ public class Processor {
 				}
 				localContext.cleanContext(context.value());
 			}
-			@SuppressWarnings("unchecked")
-			Collect collectsClass[] = (Collect[]) objectClass.getDeclaredAnnotationsByType(Collect.class);
-			if (collectsClass != null && collectsClass.length > 0) {
-				for (Collect collect : collectsClass) {
-					if (applicable(o, collect.when(), localContext)) {
-						localContext.collect(evaluate(o, collect.value(), localContext),
-								collect.what().replaceAll("this\\.", prefix + "."));
-					}
-				}
-			}
 			if (objectClass.isArray()) {
 				int length = Array.getLength(o);
 				for (int i = 0; i < length; i++) {
@@ -155,6 +145,16 @@ public class Processor {
 					} else {
 						process(prefix + "." + f.getName(), get(o, f.getName(), localContext), localContext,
 								executeContexts);
+					}
+				}
+				@SuppressWarnings("unchecked")
+				Collect collectsClass[] = (Collect[]) objectClass.getDeclaredAnnotationsByType(Collect.class);
+				if (collectsClass != null && collectsClass.length > 0) {
+					for (Collect collect : collectsClass) {
+						if (applicable(o, collect.when(), localContext)) {
+							localContext.collect(evaluate(o, collect.value(), localContext),
+									"("+collect.what().replaceAll("this\\.", prefix + ".")+") ");
+						}
 					}
 				}
 			}
