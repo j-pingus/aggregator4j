@@ -1,3 +1,6 @@
+package com.arhscube.evenge;
+import com.arhscube.evenge.Execute;
+
 public class GrandTotal {
     @Execute("sum('Grand total '+this.ccm2)")
     public Integer sum;

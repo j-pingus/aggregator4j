@@ -1,3 +1,4 @@
+package com.arhscube.evenge;
 import org.apache.commons.jexl3.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -14,21 +15,22 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	private StringBuilder processTrace;
 	private boolean debug = false;
 	private int sizeMax = SIZE_MAX;
+	private String packageStart;
 	/**
 	 * Constructor :-)
 	 */
 	public AggregatorContext() {
+		this(true);
+	}
+
+	public AggregatorContext(boolean debug) {
 		this.jexl = new JexlBuilder().create();
 		this.localContext = new MapContext();
 		this.aggregators = new HashMap<>();
 		this.registeredNamespaces = new HashMap<>();
 		this.processTrace = new StringBuilder();
-		this.debug = false;
-	}
-
-	public AggregatorContext(boolean debug) {
-		this();
 		this.debug = debug;
+		this.packageStart=null;
 	}
 
 	/**
@@ -305,6 +307,14 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 			formulas.clear();
 
 		}
+	}
+
+	public String getPackageStart() {
+		return packageStart;
+	}
+
+	public void setPackageStart(String packageStart) {
+		this.packageStart = packageStart;
 	}
 
 }

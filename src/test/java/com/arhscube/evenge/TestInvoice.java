@@ -1,6 +1,13 @@
+package com.arhscube.evenge;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import com.arhscube.evenge.AggregatorContext;
+import com.arhscube.evenge.Collect;
+import com.arhscube.evenge.Context;
+import com.arhscube.evenge.Execute;
+import com.arhscube.evenge.Processor;
 
 public class TestInvoice {
 	public class Detail {

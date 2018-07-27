@@ -1,3 +1,4 @@
+package com.arhscube.evenge;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -34,24 +35,24 @@ public class Processor {
 	 * @return
 	 */
 	public static AggregatorContext process(Object o, String prefix, AggregatorContext aggregatorContext) {
-			aggregatorContext.startProcess();
+		aggregatorContext.startProcess();
+		try {
+			List<ExecuteContext> executors = new ArrayList<>();
 			try {
-				List<ExecuteContext> executors = new ArrayList<>();
-				try {
-					aggregatorContext.set(prefix, o);
-					process(prefix, o, aggregatorContext, executors);
-					for (ExecuteContext executeContext : executors) {
-						if (executeContext.executed == false) {
-							aggregatorContext.execute(executeContext.field, executeContext.formula);
-						}
+				aggregatorContext.set(prefix, o);
+				process(prefix, o, aggregatorContext, executors);
+				for (ExecuteContext executeContext : executors) {
+					if (executeContext.executed == false) {
+						aggregatorContext.execute(executeContext.field, executeContext.formula);
 					}
-				} catch (IllegalAccessException e) {
-					LOGGER.error("Could not process object " + o, e);
 				}
-				return aggregatorContext;
-			} finally {
-				aggregatorContext.endProcess();
+			} catch (IllegalAccessException e) {
+				LOGGER.error("Could not process object " + o, e);
 			}
+			return aggregatorContext;
+		} finally {
+			aggregatorContext.endProcess();
+		}
 	}
 
 	private static void process(String prefix, Object o, AggregatorContext localContext,
@@ -111,8 +112,7 @@ public class Processor {
 			} else {
 				if (o.getClass().isPrimitive())
 					return;
-				if (o.getClass().getPackage() != null
-						&& !o.getClass().getPackage().getName().startsWith("eu.europa.ec"))
+				if (o.getClass().getPackage() != null)
 					return;
 				// Check the fields they can be Collectors, Executors or simple fields to
 				// process
@@ -153,7 +153,7 @@ public class Processor {
 					for (Collect collect : collectsClass) {
 						if (applicable(o, collect.when(), localContext)) {
 							localContext.collect(evaluate(o, collect.value(), localContext),
-									"("+collect.what().replaceAll("this\\.", prefix + ".")+") ");
+									"(" + collect.what().replaceAll("this\\.", prefix + ".") + ") ");
 						}
 					}
 				}
@@ -205,8 +205,8 @@ public class Processor {
 			return true;
 		localContext.set("this", o);
 		Boolean ret = new Boolean(localContext.evaluate(when).toString());
-		if(localContext.isDebug())
-LOGGER.debug("applicable :" + when + " is " + ret);
+		if (localContext.isDebug())
+			LOGGER.debug("applicable :" + when + " is " + ret);
 		return ret;
 	}
 

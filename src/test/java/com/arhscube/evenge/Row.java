@@ -1,3 +1,7 @@
+package com.arhscube.evenge;
+import com.arhscube.evenge.Collect;
+import com.arhscube.evenge.Variable;
+
 public class Row extends Rows {
     @Collect("All my ccm2 ids")
     @Variable("ccm2")

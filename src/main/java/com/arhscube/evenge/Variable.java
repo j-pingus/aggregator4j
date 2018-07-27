@@ -1,12 +1,10 @@
+package com.arhscube.evenge;
 import java.lang.annotation.*;
 
 @Retention(
         RetentionPolicy.RUNTIME
 )
 @Target({ElementType.FIELD,ElementType.TYPE})
-@Repeatable(Collects.class)
-public @interface Collect {
+public @interface Variable {
     String value();
-    String when() default "" ;
-    String what() default "this";
 }

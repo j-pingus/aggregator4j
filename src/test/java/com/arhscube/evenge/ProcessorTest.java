@@ -1,8 +1,14 @@
+package com.arhscube.evenge;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import com.arhscube.evenge.AggregatorContext;
+import com.arhscube.evenge.Collect;
+import com.arhscube.evenge.Execute;
+import com.arhscube.evenge.Processor;
 
 import java.util.*;
 
