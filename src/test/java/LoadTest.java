@@ -1,8 +1,10 @@
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -36,6 +38,13 @@ public class LoadTest {
     public void memory(){
         double memory = (runtime.totalMemory() - runtime.freeMemory()) / memoryUnit;
         LOGGER.info(String.format("Memory:%10.1f",memory));
+    }
+    @BeforeClass
+    @AfterClass
+    public static void gcAndReport() {
+    	System.gc();
+    	double memory = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / memoryUnit;
+        LOGGER.info(String.format("Memory after GC:%10.1f",memory));
     }
     @Test
     public void testOne() {
@@ -85,7 +94,10 @@ public class LoadTest {
 
     @Test
     public void testMax() {
-        test(416);
+        Invoice i = test(4160);
+        Assert.assertEquals(0.0026, i.averageUnitPrice, 0.0001);
+        Assert.assertEquals(832000, i.totalInvoice, 0.001);
+        Assert.assertEquals(1730601600, i.totalQuantity);
     }
 
     @Test
