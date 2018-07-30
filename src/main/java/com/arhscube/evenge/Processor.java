@@ -1,4 +1,5 @@
 package com.arhscube.evenge;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -40,6 +41,9 @@ public class Processor {
 			List<ExecuteContext> executors = new ArrayList<>();
 			try {
 				aggregatorContext.set(prefix, o);
+				if (aggregatorContext.getPackageStart() == null) {
+					aggregatorContext.setPackageStart(o.getClass().getPackage().getName());
+				}
 				process(prefix, o, aggregatorContext, executors);
 				for (ExecuteContext executeContext : executors) {
 					if (executeContext.executed == false) {
@@ -112,7 +116,8 @@ public class Processor {
 			} else {
 				if (o.getClass().isPrimitive())
 					return;
-				if (o.getClass().getPackage() != null)
+				if (o.getClass().getPackage() != null
+						&& !o.getClass().getPackage().getName().startsWith(localContext.getPackageStart()))
 					return;
 				// Check the fields they can be Collectors, Executors or simple fields to
 				// process

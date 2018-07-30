@@ -317,4 +317,9 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 		this.packageStart = packageStart;
 	}
 
+	public int size() {
+		
+		return 0;
+	}
+
 }

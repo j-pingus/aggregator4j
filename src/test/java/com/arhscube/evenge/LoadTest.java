@@ -37,7 +37,7 @@ public class LoadTest {
         Processor.process(i, "i", context);
         double memory = (runtime.totalMemory() - runtime.freeMemory()) / memoryUnit;
         time = System.currentTimeMillis() - time;
-        LOGGER.info(String.format("%10d,%10d,%10.1f", seed, time, memory));
+        LOGGER.info(String.format("%10d,%10d,%10.1f,%10d", seed, time, memory,context.size()));
         return i;
     }
     @After
@@ -150,6 +150,30 @@ public class LoadTest {
             this.quantity = quantity;
             this.unitPrice = unitPrice;
         }
+
+		public int getQuantity() {
+			return quantity;
+		}
+
+		public void setQuantity(int quantity) {
+			this.quantity = quantity;
+		}
+
+		public double getUnitPrice() {
+			return unitPrice;
+		}
+
+		public void setUnitPrice(double unitPrice) {
+			this.unitPrice = unitPrice;
+		}
+
+		public double getTotalPrice() {
+			return totalPrice;
+		}
+
+		public void setTotalPrice(double totalPrice) {
+			this.totalPrice = totalPrice;
+		}
     }
 
     public class Invoice {
@@ -166,5 +190,37 @@ public class LoadTest {
             for (int value = 1; value <= (seed * 10); value++)
                 this.details.add(new Detail(2 * value, 10.0 / value));
         }
+
+		public List<Detail> getDetails() {
+			return details;
+		}
+
+		public void setDetails(List<Detail> details) {
+			this.details = details;
+		}
+
+		public long getTotalQuantity() {
+			return totalQuantity;
+		}
+
+		public void setTotalQuantity(long totalQuantity) {
+			this.totalQuantity = totalQuantity;
+		}
+
+		public double getAverageUnitPrice() {
+			return averageUnitPrice;
+		}
+
+		public void setAverageUnitPrice(double averageUnitPrice) {
+			this.averageUnitPrice = averageUnitPrice;
+		}
+
+		public double getTotalInvoice() {
+			return totalInvoice;
+		}
+
+		public void setTotalInvoice(double totalInvoice) {
+			this.totalInvoice = totalInvoice;
+		}
     }
 }
