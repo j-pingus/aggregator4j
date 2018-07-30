@@ -44,6 +44,7 @@ public class ProcessorTest {
         myAggregatorContext = new AggregatorContext(false);
         //Adding custom functions to the context
         myAggregatorContext.register("my", Functions.class);
+        myAggregatorContext.setPackageStart("com.arhscube");
     }
 
     @Test
@@ -98,7 +99,7 @@ public class ProcessorTest {
         Assert.assertEquals(expectedAggregators, aggregators);
     }
 
-    @Test(expected = Error.class)
+    @Test
     public void ErrorTest() {
         Error1 err = new Error1();
         err.test = 1;
