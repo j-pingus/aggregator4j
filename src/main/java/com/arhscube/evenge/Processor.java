@@ -37,19 +37,15 @@ public class Processor {
         aggregatorContext.startProcess();
         try {
             List<ExecuteContext> executors = new ArrayList<>();
-            try {
-                aggregatorContext.set(prefix, o);
-                if (aggregatorContext.getPackageStart() == null) {
-                    aggregatorContext.setPackageStart(o.getClass().getPackage().getName());
+            aggregatorContext.set(prefix, o);
+            if (aggregatorContext.getPackageStart() == null) {
+                aggregatorContext.setPackageStart(o.getClass().getPackage().getName());
+            }
+            process(prefix, o, aggregatorContext, executors);
+            for (ExecuteContext executeContext : executors) {
+                if (executeContext.executed == false) {
+                    aggregatorContext.execute(executeContext.field, executeContext.formula);
                 }
-                process(prefix, o, aggregatorContext, executors);
-                for (ExecuteContext executeContext : executors) {
-                    if (executeContext.executed == false) {
-                        aggregatorContext.execute(executeContext.field, executeContext.formula);
-                    }
-                }
-            } catch (IllegalAccessException e) {
-                LOGGER.error("Could not process object " + o, e);
             }
             return aggregatorContext;
         } finally {
@@ -58,7 +54,7 @@ public class Processor {
     }
 
     private static void process(String prefix, Object o, AggregatorContext localContext,
-                                List<ExecuteContext> executeContexts) throws IllegalAccessException {
+                                List<ExecuteContext> executeContexts) {
         if (o == null)
             return;
         @SuppressWarnings("rawtypes")
@@ -185,8 +181,7 @@ public class Processor {
         return localContext.evaluate(value.substring(5)).toString();
     }
 
-    private static boolean isNull(Object o, String fieldName, AggregatorContext localContext)
-            throws IllegalAccessException {
+    private static boolean isNull(Object o, String fieldName, AggregatorContext localContext) {
         return get(o, fieldName, localContext) == null;
     }
 
@@ -210,8 +205,8 @@ public class Processor {
             this.formula = formula.replaceAll("this\\.", parent + ".");
         }
     }
+
     static class Analysed {
-        public enum CLASS_TYPE {ARRAY, LIST, MAP, ITERABLE, IGNORABLE, PROCESSABLE}
         CLASS_TYPE classType;
         Context classContext;
         Collect classCollects[];
@@ -219,7 +214,6 @@ public class Processor {
         Map<String, Execute[]> executes;
         Map<String, Variable> variables;
         List<String> otherFields;
-
         public Analysed(Class objectClass, Object object, AggregatorContext localContext) {
             classContext = (Context) objectClass.getDeclaredAnnotation(Context.class);
             classCollects = (Collect[]) objectClass.getDeclaredAnnotationsByType(Collect.class);
@@ -254,10 +248,9 @@ public class Processor {
                     Collect collectors[] = f.getDeclaredAnnotationsByType(Collect.class);
                     if (executors != null && executors.length > 0) {
                         executes.put(f.getName(), executors);
-                    }else
-                    if (collectors != null && collectors.length > 0) {
+                    } else if (collectors != null && collectors.length > 0) {
                         collects.put(f.getName(), collectors);
-                    }else{
+                    } else {
                         otherFields.add(f.getName());
                     }
                 }
@@ -272,6 +265,8 @@ public class Processor {
             }
             return ret;
         }
+
+        public enum CLASS_TYPE {ARRAY, LIST, MAP, ITERABLE, IGNORABLE, PROCESSABLE}
     }
 
 }

@@ -59,6 +59,7 @@ public class TestInvoice {
 		}
 		@Execute("sum('totalPrice')")
 		public int totalPrice;
+		public int ignorable;
 	}
 
 	Invoice toTest;
@@ -72,7 +73,7 @@ public class TestInvoice {
 
 	@Test
 	public void testWithContext() {
-		AggregatorContext context = Processor.process(toTest);
+		AggregatorContext context = Processor.process(toTest,"t",new AggregatorContext());
 		Assert.assertEquals(777, toTest.totalPrice);
 		Assert.assertEquals(7, toTest.groups[0].total.totalPrice);
 		Assert.assertEquals(70, toTest.groups[1].total.totalPrice);
