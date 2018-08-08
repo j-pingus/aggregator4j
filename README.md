@@ -16,7 +16,7 @@ class Detail2{
     public int value;
     public int value2;
 }
-@Context("Group")
+@Context("group")
 @Collect(value="total",what="this.total")
 class Group{
     public Detail[];
@@ -25,8 +25,8 @@ class Group{
     public int total;
     @Execute("avg('group.total')")
     public double average;
-    @Execute("count('group.total')")
-    public int countOfDetails;
+    @Execute("count('group.total') * 2")
+    public int doubleCountOfDetails;
 }
 class Business{
     Map<String, Group> groups;
