@@ -17,7 +17,7 @@ public class Processor {
      * then executes the @Executes Nulls will not be collected You cannot assume
      * wich order will be executed for the @Executes
      *
-     * @param o
+     * @param o the object to process
      * @return an Aggregator context to be used for programmatically accessing the
      * aggregators
      */
@@ -29,9 +29,10 @@ public class Processor {
      * same as process. Use this method if you want to register custom methods in a
      * namespace to your context.
      *
-     * @param o
-     * @param aggregatorContext
-     * @return
+     * @param o the object to be processed
+     * @param prefix the prefix to use as a reference for o in the context
+     * @param aggregatorContext a context to help processing the object
+     * @return updated aggregator context
      */
     public static AggregatorContext process(Object o, String prefix, AggregatorContext aggregatorContext) {
         aggregatorContext.startProcess();

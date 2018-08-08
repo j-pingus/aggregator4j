@@ -37,8 +37,8 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	 * Register an object (or a class) to a namespace. Future call to the evaluator
 	 * function will benefit from all public methods as functions in that namespace
 	 *
-	 * @param namespace
-	 * @param o
+	 * @param namespace the string to prefix the functions
+	 * @param o the object or class containing functions to register
 	 */
 	public void register(String namespace, Object o) {
 		registeredNamespaces.put(namespace, o);
@@ -59,9 +59,9 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	 * you can use - sum - avg - count - join see methods with same name in this
 	 * class for more information
 	 *
-	 * @param expression
-	 * @return
-	 */
+	 * @param expression expression to evaluate
+	 * @return evaluated expression
+ 	 */
 	public Object evaluate(String expression) {
 		try {
 			return jexl.createExpression(expression).evaluate(this);
@@ -75,9 +75,9 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	 * Joins all objects that have been collected in an aggregator into a string
 	 * separated by separator
 	 *
-	 * @param separator
-	 * @param aggregator
-	 * @return
+	 * @param separator the String to use as separator
+	 * @param aggregator the aggregator to join
+	 * @return a String with all aggregator's element joined by sperator or else an empty string if aggregator not found
 	 */
 	public Object join(String separator, String aggregator) {
 		return aggregate(aggregator, "join", false, a -> a.join("+'" + separator + "'+"),"");
@@ -86,8 +86,8 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	/**
 	 * Count how many objects have been collected in an aggregator
 	 *
-	 * @param aggregator
-	 * @return
+	 * @param aggregator the aggregator to count elements for
+	 * @return the number of elements in aggregator or else 0
 	 */
 	public Integer count(String aggregator) {
 		if (aggregators.containsKey(aggregator)) {
@@ -105,9 +105,9 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	/**
 	 * if Object was aggregated return true.
 	 *
-	 * @param aggregator
-	 * @param object
-	 * @return
+	 * @param aggregator the aggregator to evaluate
+	 * @param object the object to search reference for
+	 * @return true if object exists in aggregator or else false
 	 */
 	public Boolean contains(String aggregator, Object object) {
 		return asSet(aggregator).contains(object);
@@ -117,8 +117,9 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	 * Sum all objects collected in an aggregator (may be problematic if JEXL cannot
 	 * sum those objects with "+" operand)
 	 *
-	 * @param aggregator
-	 * @return
+	 * @param aggregator the aggregator to evaluate
+	 * @param orElse the default value to return in case not found or no elements in aggregator
+	 * @return the total of all elements in element's type if not found or no elements
 	 */
 	public Object sum(String aggregator,Object orElse) {
 		return aggregate(aggregator, "sum", true, a -> a.join("+"), orElse);
@@ -128,8 +129,8 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	 * Sum all objects collected in an aggregator (may be problematic if JEXL cannot
 	 * sum those objects with "+" operand)
 	 *
-	 * @param aggregator
-	 * @return
+	 * @param aggregator the aggregator
+	 * @return the sum or null if not found or empty
 	 */
 	public Object sum(String aggregator) {
 		return aggregate(aggregator, "sum", true, a -> a.join("+"), null);
@@ -138,8 +139,8 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	/**
 	 * does sum/count for an aggregator, result is floating point (usually double)
 	 *
-	 * @param aggregator
-	 * @return
+	 * @param aggregator the aggregator
+	 * @return the average or 0.0d if not found or empty
 	 */
 	public Object avg(final String aggregator) {
 		int count = count(aggregator);
@@ -152,6 +153,8 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 
 	/**
 	 * return aggregated values As Array
+	 * @param aggregator the aggregator
+	 *                   @return an array (may be empty)
 	 */
 	public Object[] asArray(String aggregator) {
 		return (Object[]) aggregate(aggregator, "asArray", false, a -> "[" + a.join(",") + "]",new Object[] {});
@@ -159,6 +162,8 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 
 	/**
 	 * return aggregated values as Set
+	 * @param aggregator the aggregator
+	 * @return the distinct set of elements (may be empty)
 	 */
 	public Set<Object> asSet(String aggregator) {
 		@SuppressWarnings("unchecked")
@@ -175,7 +180,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 		return Collections.unmodifiableSet(aggregators.keySet());
 	}
 
-	public Object aggregate(String aggregator, String name, boolean canSplit, AggregatorJEXLBuilder expressionBuilder,Object orElse) {
+	protected Object aggregate(String aggregator, String name, boolean canSplit, AggregatorJEXLBuilder expressionBuilder,Object orElse) {
 		Object ret = null;
 		if (aggregators.containsKey(aggregator)) {
 			Aggregator a = aggregators.get(aggregator);
@@ -205,8 +210,8 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	/**
 	 * Used by processor to collect object references
 	 *
-	 * @param aggregator
-	 * @param objectReference
+	 * @param aggregator aggregator's name to collect
+	 * @param objectReference the reference to the element to collect
 	 */
 	protected void collect(String aggregator, String objectReference) {
 		if (!aggregators.containsKey(aggregator))
@@ -240,19 +245,31 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 		return localContext.has(s);
 	}
 
-	public void cleanContext(String value) {
+	/**
+	 * removes all elements from context starting
+	 * @param prefix the prefix of all aggregators to clean
+	 */
+	public void cleanContext(String prefix) {
 		for (String key : aggregators.keySet()) {
-			if (key.startsWith(value + ".")) {
+			if (key.startsWith(prefix + ".")) {
 				aggregators.get(key).clear();
 			}
 		}
 	}
 
+	/**
+	 * Trace context start
+	 * @param contextName the context name to trace
+	 */
 	public void startContext(String contextName) {
 		if (debug)
 			processTrace.append("\"context\":{\"name\":\"").append(contextName).append("\",");
 	}
 
+	/**
+	 * stops trace of context
+	 * @param value the context name to stop
+	 */
 	public void endContext(String value) {
 		if (debug)
 			processTrace.append("},");
