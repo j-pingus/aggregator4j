@@ -246,18 +246,27 @@ public class Processor {
                     }
                     Execute executors[] = f.getDeclaredAnnotationsByType(Execute.class);
                     Collect collectors[] = f.getDeclaredAnnotationsByType(Collect.class);
+                    String fieldName=sanitizeFieldName(f.getName());
                     if (executors != null && executors.length > 0) {
-                        executes.put(f.getName(), executors);
+                        executes.put(fieldName, executors);
                     } else if (collectors != null && collectors.length > 0) {
-                        collects.put(f.getName(), collectors);
+                        collects.put(fieldName, collectors);
                     } else {
-                        otherFields.add(f.getName());
+                        otherFields.add(fieldName);
                     }
                 }
             }
         }
 
-        static List<Field> getFields(Class baseClass) {
+        private String sanitizeFieldName(String name) {
+        	//TODO: also do for or and eq ne lt gt le ge div mod not null true false new var return
+			if("size".equals(name)) {
+				return "'"+name+"'";
+			}
+			return name;
+		}
+
+		static List<Field> getFields(Class baseClass) {
             ArrayList<Field> ret = new ArrayList<>();
             while (baseClass != null && baseClass != Object.class) {
                 Collections.addAll(ret, baseClass.getDeclaredFields());

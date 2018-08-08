@@ -6,7 +6,7 @@ import org.apache.commons.logging.LogFactory;
 import java.util.*;
 
 public class AggregatorContext implements JexlContext.NamespaceResolver, JexlContext {
-	private static final int SIZE_MAX=2000;
+	private static final int SIZE_MAX = 2000;
 	private static final Log LOGGER = LogFactory.getLog(AggregatorContext.class);
 	private JexlEngine jexl;
 	private Map<String, Object> registeredNamespaces;
@@ -30,7 +30,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 		this.registeredNamespaces = new HashMap<>();
 		this.processTrace = new StringBuilder();
 		this.debug = debug;
-		this.packageStart=null;
+		this.packageStart = null;
 	}
 
 	/**
@@ -80,7 +80,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	 * @return
 	 */
 	public Object join(String separator, String aggregator) {
-		return aggregate(aggregator, "join", false, a -> a.join("+'" + separator + "'+"));
+		return aggregate(aggregator, "join", false, a -> a.join("+'" + separator + "'+"),"");
 	}
 
 	/**
@@ -99,7 +99,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 		} else {
 			LOGGER.warn("Could not find aggregator with name '" + aggregator + "'");
 		}
-		return null;
+		return 0;
 	}
 
 	/**
@@ -120,8 +120,19 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	 * @param aggregator
 	 * @return
 	 */
+	public Object sum(String aggregator,Object orElse) {
+		return aggregate(aggregator, "sum", true, a -> a.join("+"), orElse);
+	}
+
+	/**
+	 * Sum all objects collected in an aggregator (may be problematic if JEXL cannot
+	 * sum those objects with "+" operand)
+	 *
+	 * @param aggregator
+	 * @return
+	 */
 	public Object sum(String aggregator) {
-		return aggregate(aggregator, "sum", true, a -> a.join("+"));
+		return aggregate(aggregator, "sum", true, a -> a.join("+"), null);
 	}
 
 	/**
@@ -131,15 +142,19 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	 * @return
 	 */
 	public Object avg(final String aggregator) {
-		sum(aggregator);
-		return evaluate("$sum/" + count(aggregator) + ".0");
+		int count = count(aggregator);
+		if (count > 0) {
+			sum(aggregator);
+			return evaluate("$sum/" + count(aggregator) + ".0");
+		}
+		return new Double(0.0d);
 	}
 
 	/**
 	 * return aggregated values As Array
 	 */
 	public Object[] asArray(String aggregator) {
-		return (Object[]) aggregate(aggregator, "asArray", false, a -> "[" + a.join(",") + "]");
+		return (Object[]) aggregate(aggregator, "asArray", false, a -> "[" + a.join(",") + "]",new Object[] {});
 	}
 
 	/**
@@ -147,7 +162,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	 */
 	public Set<Object> asSet(String aggregator) {
 		@SuppressWarnings("unchecked")
-		Set<Object> ret = (Set<Object>) aggregate(aggregator, "asSet", false, a -> "{" + a.join(",") + "}");
+		Set<Object> ret = (Set<Object>) aggregate(aggregator, "asSet", false, a -> "{" + a.join(",") + "}", new HashSet<>());
 		return ret;
 	}
 
@@ -159,19 +174,22 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	public Set<String> aggregators() {
 		return Collections.unmodifiableSet(aggregators.keySet());
 	}
-	public Object aggregate(String aggregator, String name, boolean canSplit, AggregatorJEXLBuilder expressionBuilder) {
+
+	public Object aggregate(String aggregator, String name, boolean canSplit, AggregatorJEXLBuilder expressionBuilder,Object orElse) {
 		Object ret = null;
 		if (aggregators.containsKey(aggregator)) {
 			Aggregator a = aggregators.get(aggregator);
+			if(a.formulas.size()==0)
+				return orElse;
 			if (canSplit && a.count() > sizeMax) {
 				boolean first = true;
 				for (Aggregator b : a.split(sizeMax)) {
-					String expression = "$"+name + (first ? "=" : "+=") + expressionBuilder.buildExpression(b);
+					String expression = "$" + name + (first ? "=" : "+=") + expressionBuilder.buildExpression(b);
 					first = false;
 					ret = evaluate(expression);
 				}
 			} else {
-				String expression = "$"+name+"="+expressionBuilder.buildExpression(a);
+				String expression = "$" + name + "=" + expressionBuilder.buildExpression(a);
 				ret = evaluate(expression);
 			}
 			if (debug)
@@ -180,7 +198,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 		} else {
 			LOGGER.warn("Could not find aggregator with name '" + aggregator + "'");
 		}
-		return null;
+		return orElse;
 
 	}
 
