@@ -24,7 +24,7 @@
 
     <scm>
         <url>https://github.com/j-pingus/aggregator4j</url>
-        <connection>scm:git:git://github.com/j-pingus/aggregator4j.git</connection>
+        <connection>scm:git:https://github.com/j-pingus/aggregator4j.git</connection>
     </scm>
 
     <developers>
