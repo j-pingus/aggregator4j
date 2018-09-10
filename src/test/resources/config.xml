@@ -1,0 +1,30 @@
+<aggregator4j>
+    <function namespace="my" registerClass="com.github.jpingus.Functions"/>
+    <package name="com.github.jpingus"/>
+    <class name="com.github.jpingus.Business">
+        <execute field="total" jexl="sum('total')"/>
+        <execute field="total2" jexl="sum('total2')"/>
+        <execute field="doubleCount" jexl="count('total2')*2"/>
+        <execute field="avg2" jexl="avg('total2')"/>
+        <execute field="rate" jexl="my:rate(sum('total2'))"/>
+        <execute field="ccm2" jexl="'['+join(',','All my ccm2 ids')+']'"/>
+        <execute field="totalBig" jexl="avg('Big decimal')"/>
+    </class>
+    <class name="com.github.jpingus.GrandTotal">
+        <execute field="sum" jexl="sum('Grand total '+this.ccm2)"/>
+    </class>
+    <class name="com.github.jpingus.Row">
+        <collect field="ccm2"to="All my ccm2 ids" />
+        <variable name="ccm2" field="ccm2"/>
+        <collect to="total" field="value"/>
+        <collect to="eval:'Grand total '+this.ccm2" when="this.ccm2 != null" field="value"/>
+    </class>
+    <class name="com.github.jpingus.Row2">
+        <collect field="value" to="total2"/>
+        <collect field="value" to="Grand total c"/>
+        <collect field="otherValue" to="Big decimal"/>
+    </class>
+    <class name="com.github.jpingus.Rows">
+    </class>
+
+</aggregator4j>

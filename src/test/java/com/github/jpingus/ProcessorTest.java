@@ -39,7 +39,7 @@ public class ProcessorTest {
         myAggregatorContext = new AggregatorContext(false);
         //Adding custom functions to the context
         myAggregatorContext.register("my", Functions.class);
-        myAggregatorContext.setPackageStart("com.arhscube");
+        myAggregatorContext.setPackageStart("com.github.jpingus");
     }
 
     @Test

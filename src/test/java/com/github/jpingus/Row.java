@@ -7,7 +7,7 @@ public class Row extends Rows {
     @Collect("total")
     @Collect(value="eval:'Grand total '+this.ccm2",when="this.ccm2 != null")
     Integer value;
-
+    Collect c =new Collect();
     public Row(Integer value, String ccm2) {
         this.value = value;
         this.ccm2 = ccm2;

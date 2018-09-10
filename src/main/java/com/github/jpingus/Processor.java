@@ -29,8 +29,8 @@ public class Processor {
      * same as process. Use this method if you want to register custom methods in a
      * namespace to your context.
      *
-     * @param o the object to be processed
-     * @param prefix the prefix to use as a reference for o in the context
+     * @param o                 the object to be processed
+     * @param prefix            the prefix to use as a reference for o in the context
      * @param aggregatorContext a context to help processing the object
      * @return updated aggregator context
      */
@@ -63,14 +63,14 @@ public class Processor {
         Analysed analysed = analyse(objectClass, o, localContext);
         try {
             if (analysed.classContext != null) {
-                localContext.startContext(analysed.classContext.value());
+                localContext.startContext(analysed.classContext.name);
                 for (ExecuteContext executeContext : executeContexts) {
-                    if (executeContext.formula.contains(analysed.classContext.value() + ".") && executeContext.executed == false) {
+                    if (executeContext.formula.contains(analysed.classContext.name + ".") && executeContext.executed == false) {
                         localContext.execute(executeContext.field, executeContext.formula);
                         executeContext.executed = true;
                     }
                 }
-                localContext.cleanContext(analysed.classContext.value());
+                localContext.cleanContext(analysed.classContext.name);
             }
             int i = 0;
             String key;
@@ -113,7 +113,7 @@ public class Processor {
 
             }
             for (String field : analysed.variables.keySet()) {
-                localContext.addVariable(analysed.variables.get(field).value(), get(o, field, localContext));
+                localContext.addVariable(analysed.variables.get(field), get(o, field, localContext));
             }
             //First potentially seek deeper.
             for (String field : analysed.otherFields) {
@@ -124,32 +124,32 @@ public class Processor {
             for (String field : analysed.collects.keySet()) {
                 if (!isNull(o, field, localContext)) {
                     String add = prefix + "." + field;
-                    for (Collect collect : analysed.collects.get(field)) {
-                        if (applicable(o, collect.when(), localContext)) {
-                            localContext.collect(evaluate(o, collect.value(), localContext), add);
+                    for (AnalysedCollect collect : analysed.collects.get(field)) {
+                        if (applicable(o, collect.when, localContext)) {
+                            localContext.collect(evaluate(o, collect.to, localContext), add);
                         }
                     }
                 }
             }
             //Execute the fields
             for (String field : analysed.executes.keySet()) {
-                for (Execute execute : analysed.executes.get(field)) {
-                    if (applicable(o, execute.when(), localContext)) {
-                        executeContexts.add(new ExecuteContext(prefix, field, execute.value()));
+                for (AnalysedExecute execute : analysed.executes.get(field)) {
+                    if (applicable(o, execute.when, localContext)) {
+                        executeContexts.add(new ExecuteContext(prefix, field, execute.jexl));
                     }
                 }
             }
             if (analysed.classCollects != null) {
-                for (Collect collect : analysed.classCollects) {
-                    if (applicable(o, collect.when(), localContext)) {
-                        localContext.collect(evaluate(o, collect.value(), localContext),
-                                "(" + collect.what().replaceAll("this\\.", prefix + ".") + ") ");
+                for (AnalysedCollect collect : analysed.classCollects) {
+                    if (applicable(o, collect.when, localContext)) {
+                        localContext.collect(evaluate(o, collect.to, localContext),
+                                "(" + collect.what.replaceAll("this\\.", prefix + ".") + ") ");
                     }
                 }
             }
         } finally {
             if (analysed.classContext != null)
-                localContext.endContext(analysed.classContext.value());
+                localContext.endContext(analysed.classContext.name);
         }
     }
 
@@ -207,17 +207,48 @@ public class Processor {
         }
     }
 
+    static class AnalysedContext {
+        public String name;
+
+        public AnalysedContext(Context context) {
+            this.name = context.value();
+        }
+    }
+
+    static class AnalysedCollect {
+        String to;
+        String what;
+        String when;
+
+        public AnalysedCollect(Collect collect) {
+            this.to = collect.value();
+            this.what = collect.what();
+            this.when = collect.when();
+        }
+    }
+
+    static class AnalysedExecute {
+        String jexl;
+        String when;
+
+        public AnalysedExecute(Execute execute) {
+            this.jexl = execute.value();
+            this.when = execute.when();
+        }
+    }
+
     static class Analysed {
         CLASS_TYPE classType;
-        Context classContext;
-        Collect classCollects[];
-        Map<String, Collect[]> collects;
-        Map<String, Execute[]> executes;
-        Map<String, Variable> variables;
+        AnalysedContext classContext;
+        AnalysedCollect classCollects[];
+        Map<String, AnalysedCollect[]> collects;
+        Map<String, AnalysedExecute[]> executes;
+        Map<String, String> variables;
         List<String> otherFields;
+
         public Analysed(Class objectClass, Object object, AggregatorContext localContext) {
-            classContext = (Context) objectClass.getDeclaredAnnotation(Context.class);
-            classCollects = (Collect[]) objectClass.getDeclaredAnnotationsByType(Collect.class);
+            classContext = new AnalysedContext((Context) objectClass.getDeclaredAnnotation(Context.class));
+            classCollects = analyse((Collect[]) objectClass.getDeclaredAnnotationsByType(Collect.class));
             if (classCollects != null && classCollects.length == 0)
                 classCollects = null;
             if (objectClass.isArray()) {
@@ -243,15 +274,15 @@ public class Processor {
 
                     Variable variable = f.getDeclaredAnnotation(Variable.class);
                     if (variable != null) {
-                        variables.put(f.getName(), variable);
+                        variables.put(f.getName(), variable.value());
                     }
                     Execute executors[] = f.getDeclaredAnnotationsByType(Execute.class);
                     Collect collectors[] = f.getDeclaredAnnotationsByType(Collect.class);
-                    String fieldName=sanitizeFieldName(f.getName());
+                    String fieldName = sanitizeFieldName(f.getName());
                     if (executors != null && executors.length > 0) {
-                        executes.put(fieldName, executors);
+                        executes.put(fieldName, analyse(executors));
                     } else if (collectors != null && collectors.length > 0) {
-                        collects.put(fieldName, collectors);
+                        collects.put(fieldName, analyse(collectors));
                     } else {
                         otherFields.add(fieldName);
                     }
@@ -259,21 +290,37 @@ public class Processor {
             }
         }
 
-        private String sanitizeFieldName(String name) {
-        	//TODO: also do for or and eq ne lt gt le ge div mod not null true false new var return
-			if("size".equals(name)) {
-				return "'"+name+"'";
-			}
-			return name;
-		}
+        private AnalysedExecute[] analyse(Execute[] executes) {
+            AnalysedExecute[] ret = new AnalysedExecute[executes.length];
+            for(int i=0;i<executes.length;i++){
+                ret[i] = new AnalysedExecute(executes[i]);
+            }
+            return ret;
+        }
 
-		static List<Field> getFields(Class baseClass) {
+        static List<Field> getFields(Class baseClass) {
             ArrayList<Field> ret = new ArrayList<>();
             while (baseClass != null && baseClass != Object.class) {
                 Collections.addAll(ret, baseClass.getDeclaredFields());
                 baseClass = baseClass.getSuperclass();
             }
             return ret;
+        }
+
+        private AnalysedCollect[] analyse(Collect[] collects) {
+            AnalysedCollect ret[] = new AnalysedCollect[collects.length];
+            for (int i = 0; i < collects.length; i++) {
+                ret[i] = new AnalysedCollect(collects[i]);
+            }
+            return ret;
+        }
+
+        private String sanitizeFieldName(String name) {
+            //TODO: also do for or and eq ne lt gt le ge div mod not null true false new var return
+            if ("size".equals(name)) {
+                return "'" + name + "'";
+            }
+            return name;
         }
 
         public enum CLASS_TYPE {ARRAY, LIST, MAP, ITERABLE, IGNORABLE, PROCESSABLE}
