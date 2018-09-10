@@ -1,4 +1,4 @@
-package com.arhscube.evenge;
+package com.github.jpingus;
 import java.lang.annotation.*;
 
 @Retention(

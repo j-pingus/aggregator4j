@@ -1,3 +1,3 @@
-package com.arhscube.evenge;
+package com.github.jpingus;
 public abstract class Rows {
 }

@@ -1,7 +1,6 @@
-package com.arhscube.evenge;
+package com.github.jpingus;
 import java.math.BigDecimal;
 
-import com.arhscube.evenge.Collect;
 public class Row2 extends Rows{
     @Collect("total2")
     @Collect("Grand total c")

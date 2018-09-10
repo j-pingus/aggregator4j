@@ -1,8 +1,6 @@
-package com.arhscube.evenge;
+package com.github.jpingus;
 import java.math.BigDecimal;
 import java.util.*;
-
-import com.arhscube.evenge.Execute;
 
 public class Business {
 	@Execute("sum('total')")
