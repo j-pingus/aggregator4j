@@ -63,14 +63,14 @@ public class Processor {
         Analysed analysed = analyse(objectClass, o, localContext);
         try {
             if (analysed.classContext != null) {
-                localContext.startContext(analysed.classContext.name);
+                localContext.startContext(analysed.classContext);
                 for (ExecuteContext executeContext : executeContexts) {
-                    if (executeContext.formula.contains(analysed.classContext.name + ".") && executeContext.executed == false) {
+                    if (executeContext.formula.contains(analysed.classContext + ".") && executeContext.executed == false) {
                         localContext.execute(executeContext.field, executeContext.formula);
                         executeContext.executed = true;
                     }
                 }
-                localContext.cleanContext(analysed.classContext.name);
+                localContext.cleanContext(analysed.classContext);
             }
             int i = 0;
             String key;
@@ -149,7 +149,7 @@ public class Processor {
             }
         } finally {
             if (analysed.classContext != null)
-                localContext.endContext(analysed.classContext.name);
+                localContext.endContext(analysed.classContext);
         }
     }
 
@@ -207,14 +207,6 @@ public class Processor {
         }
     }
 
-    static class AnalysedContext {
-        public String name;
-
-        public AnalysedContext(Context context) {
-            this.name = context.value();
-        }
-    }
-
     static class AnalysedCollect {
         String to;
         String what;
@@ -239,7 +231,7 @@ public class Processor {
 
     static class Analysed {
         CLASS_TYPE classType;
-        AnalysedContext classContext;
+        String classContext;
         AnalysedCollect classCollects[];
         Map<String, AnalysedCollect[]> collects;
         Map<String, AnalysedExecute[]> executes;
@@ -247,7 +239,8 @@ public class Processor {
         List<String> otherFields;
 
         public Analysed(Class objectClass, Object object, AggregatorContext localContext) {
-            classContext = new AnalysedContext((Context) objectClass.getDeclaredAnnotation(Context.class));
+            Context cx = (Context) objectClass.getDeclaredAnnotation(Context.class);
+            classContext = cx == null ? null : cx.value();
             classCollects = analyse((Collect[]) objectClass.getDeclaredAnnotationsByType(Collect.class));
             if (classCollects != null && classCollects.length == 0)
                 classCollects = null;
@@ -290,19 +283,19 @@ public class Processor {
             }
         }
 
-        private AnalysedExecute[] analyse(Execute[] executes) {
-            AnalysedExecute[] ret = new AnalysedExecute[executes.length];
-            for(int i=0;i<executes.length;i++){
-                ret[i] = new AnalysedExecute(executes[i]);
-            }
-            return ret;
-        }
-
         static List<Field> getFields(Class baseClass) {
             ArrayList<Field> ret = new ArrayList<>();
             while (baseClass != null && baseClass != Object.class) {
                 Collections.addAll(ret, baseClass.getDeclaredFields());
                 baseClass = baseClass.getSuperclass();
+            }
+            return ret;
+        }
+
+        private AnalysedExecute[] analyse(Execute[] executes) {
+            AnalysedExecute[] ret = new AnalysedExecute[executes.length];
+            for (int i = 0; i < executes.length; i++) {
+                ret[i] = new AnalysedExecute(executes[i]);
             }
             return ret;
         }

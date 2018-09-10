@@ -6,7 +6,7 @@
 
     <groupId>com.github.j-pingus</groupId>
     <artifactId>aggregator4j</artifactId>
-    <version>1.0</version>
+    <version>0.0.2-SNAPSHOT</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Library aggregating fields using annotations in complex objects structures</description>
     <url>https://github.com/j-pingus/aggregator4j</url>
