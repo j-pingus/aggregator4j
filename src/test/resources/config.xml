@@ -14,7 +14,7 @@
         <execute field="sum" jexl="sum('Grand total '+this.ccm2)"/>
     </class>
     <class name="com.github.jpingus.Row">
-        <collect field="ccm2"to="All my ccm2 ids" />
+        <collect field="ccm2" to="All my ccm2 ids" />
         <variable name="ccm2" field="ccm2"/>
         <collect to="total" field="value"/>
         <collect to="eval:'Grand total '+this.ccm2" when="this.ccm2 != null" field="value"/>
