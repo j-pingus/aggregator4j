@@ -16,6 +16,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 	private boolean debug = false;
 	private int sizeMax = SIZE_MAX;
 	private String packageStart;
+	private final Map<Class, Analysed> analysedCache = new HashMap<>();
 	/**
 	 * Constructor :-)
 	 */
@@ -356,5 +357,13 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 		
 		return 0;
 	}
+	synchronized Analysed getAnalysed(Class objectClass, Object o) {
+		if (!analysedCache.containsKey(objectClass)) {
+			Analysed analysed = new Analysed(objectClass, o, this);
+			analysedCache.put(objectClass, analysed);
+		}
+		return analysedCache.get(objectClass);
+	}
+
 
 }

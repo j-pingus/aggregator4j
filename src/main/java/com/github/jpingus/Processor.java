@@ -9,8 +9,17 @@ import java.util.*;
 
 public class Processor {
     private static final Log LOGGER = LogFactory.getLog(Processor.class);
-    private static final Map<Class, Analysed> analysedCache = new HashMap<>();
 
+    static class ExecuteContext {
+        String field;
+        String formula;
+        boolean executed = false;
+
+        public ExecuteContext(String parent, String field, String formula) {
+            this.field = parent + "." + field;
+            this.formula = formula.replaceAll("this\\.", parent + ".");
+        }
+    }
 
     /**
      * Analyse recursively an object, collecting all the @Collects to aggregators,
@@ -60,7 +69,7 @@ public class Processor {
             return;
         @SuppressWarnings("rawtypes")
         Class objectClass = o.getClass();
-        Analysed analysed = analyse(objectClass, o, localContext);
+        Analysed analysed = localContext.getAnalysed(objectClass,o);
         try {
             if (analysed.classContext != null) {
                 localContext.startContext(analysed.classContext);
@@ -124,7 +133,7 @@ public class Processor {
             for (String field : analysed.collects.keySet()) {
                 if (!isNull(o, field, localContext)) {
                     String add = prefix + "." + field;
-                    for (AnalysedCollect collect : analysed.collects.get(field)) {
+                    for (Analysed.Collect collect : analysed.collects.get(field)) {
                         if (applicable(o, collect.when, localContext)) {
                             localContext.collect(evaluate(o, collect.to, localContext), add);
                         }
@@ -133,14 +142,14 @@ public class Processor {
             }
             //Execute the fields
             for (String field : analysed.executes.keySet()) {
-                for (AnalysedExecute execute : analysed.executes.get(field)) {
+                for (Analysed.Execute execute : analysed.executes.get(field)) {
                     if (applicable(o, execute.when, localContext)) {
                         executeContexts.add(new ExecuteContext(prefix, field, execute.jexl));
                     }
                 }
             }
             if (analysed.classCollects != null) {
-                for (AnalysedCollect collect : analysed.classCollects) {
+                for (Analysed.Collect collect : analysed.classCollects) {
                     if (applicable(o, collect.when, localContext)) {
                         localContext.collect(evaluate(o, collect.to, localContext),
                                 "(" + collect.what.replaceAll("this\\.", prefix + ".") + ") ");
@@ -151,14 +160,6 @@ public class Processor {
             if (analysed.classContext != null)
                 localContext.endContext(analysed.classContext);
         }
-    }
-
-    private static synchronized Analysed analyse(Class objectClass, Object o, AggregatorContext localContext) {
-        if (!analysedCache.containsKey(objectClass)) {
-            Analysed analysed = new Analysed(objectClass, o, localContext);
-            analysedCache.put(objectClass, analysed);
-        }
-        return analysedCache.get(objectClass);
     }
 
 
@@ -196,127 +197,7 @@ public class Processor {
         return ret;
     }
 
-    private static class ExecuteContext {
-        String field;
-        String formula;
-        boolean executed = false;
 
-        public ExecuteContext(String parent, String field, String formula) {
-            this.field = parent + "." + field;
-            this.formula = formula.replaceAll("this\\.", parent + ".");
-        }
-    }
 
-    static class AnalysedCollect {
-        String to;
-        String what;
-        String when;
-
-        public AnalysedCollect(Collect collect) {
-            this.to = collect.value();
-            this.what = collect.what();
-            this.when = collect.when();
-        }
-    }
-
-    static class AnalysedExecute {
-        String jexl;
-        String when;
-
-        public AnalysedExecute(Execute execute) {
-            this.jexl = execute.value();
-            this.when = execute.when();
-        }
-    }
-
-    static class Analysed {
-        CLASS_TYPE classType;
-        String classContext;
-        AnalysedCollect classCollects[];
-        Map<String, AnalysedCollect[]> collects;
-        Map<String, AnalysedExecute[]> executes;
-        Map<String, String> variables;
-        List<String> otherFields;
-
-        public Analysed(Class objectClass, Object object, AggregatorContext localContext) {
-            Context cx = (Context) objectClass.getDeclaredAnnotation(Context.class);
-            classContext = cx == null ? null : cx.value();
-            classCollects = analyse((Collect[]) objectClass.getDeclaredAnnotationsByType(Collect.class));
-            if (classCollects != null && classCollects.length == 0)
-                classCollects = null;
-            if (objectClass.isArray()) {
-                classType = CLASS_TYPE.ARRAY;
-            } else if (List.class.isAssignableFrom(objectClass)) {
-                classType = CLASS_TYPE.LIST;
-            } else if (object instanceof Map) {
-                classType = CLASS_TYPE.MAP;
-            } else if (Iterable.class.isAssignableFrom(objectClass)) {
-                classType = CLASS_TYPE.ITERABLE;
-            } else if (objectClass.isPrimitive()) {
-                classType = CLASS_TYPE.IGNORABLE;
-            } else if (objectClass.getPackage() != null
-                    && !objectClass.getPackage().getName().startsWith(localContext.getPackageStart())) {
-                classType = CLASS_TYPE.IGNORABLE;
-            } else {
-                classType = CLASS_TYPE.PROCESSABLE;
-                variables = new HashMap<>();
-                executes = new HashMap<>();
-                collects = new HashMap<>();
-                otherFields = new ArrayList<>();
-                for (Field f : getFields(objectClass)) {
-
-                    Variable variable = f.getDeclaredAnnotation(Variable.class);
-                    if (variable != null) {
-                        variables.put(f.getName(), variable.value());
-                    }
-                    Execute executors[] = f.getDeclaredAnnotationsByType(Execute.class);
-                    Collect collectors[] = f.getDeclaredAnnotationsByType(Collect.class);
-                    String fieldName = sanitizeFieldName(f.getName());
-                    if (executors != null && executors.length > 0) {
-                        executes.put(fieldName, analyse(executors));
-                    } else if (collectors != null && collectors.length > 0) {
-                        collects.put(fieldName, analyse(collectors));
-                    } else {
-                        otherFields.add(fieldName);
-                    }
-                }
-            }
-        }
-
-        static List<Field> getFields(Class baseClass) {
-            ArrayList<Field> ret = new ArrayList<>();
-            while (baseClass != null && baseClass != Object.class) {
-                Collections.addAll(ret, baseClass.getDeclaredFields());
-                baseClass = baseClass.getSuperclass();
-            }
-            return ret;
-        }
-
-        private AnalysedExecute[] analyse(Execute[] executes) {
-            AnalysedExecute[] ret = new AnalysedExecute[executes.length];
-            for (int i = 0; i < executes.length; i++) {
-                ret[i] = new AnalysedExecute(executes[i]);
-            }
-            return ret;
-        }
-
-        private AnalysedCollect[] analyse(Collect[] collects) {
-            AnalysedCollect ret[] = new AnalysedCollect[collects.length];
-            for (int i = 0; i < collects.length; i++) {
-                ret[i] = new AnalysedCollect(collects[i]);
-            }
-            return ret;
-        }
-
-        private String sanitizeFieldName(String name) {
-            //TODO: also do for or and eq ne lt gt le ge div mod not null true false new var return
-            if ("size".equals(name)) {
-                return "'" + name + "'";
-            }
-            return name;
-        }
-
-        public enum CLASS_TYPE {ARRAY, LIST, MAP, ITERABLE, IGNORABLE, PROCESSABLE}
-    }
 
 }
