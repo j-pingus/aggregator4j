@@ -69,7 +69,7 @@ public class Processor {
             return;
         @SuppressWarnings("rawtypes")
         Class objectClass = o.getClass();
-        Analysed analysed = localContext.getAnalysed(objectClass,o);
+        Analysed analysed = localContext.getAnalysed(objectClass);
         try {
             if (analysed.classContext != null) {
                 localContext.startContext(analysed.classContext);
