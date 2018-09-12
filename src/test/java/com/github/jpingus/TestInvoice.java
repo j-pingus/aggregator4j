@@ -13,12 +13,12 @@ public class TestInvoice {
 			this.price = price;
 		}
 	}
-	public class GroupTotal{
+	public static class GroupTotal{
 		
 		@Execute("sum('group.totalPrice')")
 		public int totalPrice;
 	}
-	public class AncestorGroup{
+	public static class AncestorGroup{
 		int id;
 
 		public AncestorGroup(int id) {
@@ -32,7 +32,7 @@ public class TestInvoice {
 	}
 	@Context("group")
 	@Collect(value="id",what="this.id")
-	public class Group extends AncestorGroup {
+	public static class Group extends AncestorGroup {
 
 		public Detail details[];
 		public GroupTotal total;

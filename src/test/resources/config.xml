@@ -10,7 +10,7 @@
         <execute field="ccm2" jexl="'['+join(',','All my ccm2 ids')+']'"/>
         <execute field="totalBig" jexl="avg('Big decimal')"/>
     </class>
-    <class name="com.github.jpingus.GrandTotal"  context="business">
+    <class name="com.github.jpingus.GrandTotal"  >
         <execute field="sum" jexl="sum('Grand total '+this.ccm2)"/>
     </class>
     <class name="com.github.jpingus.Row">
@@ -23,6 +23,9 @@
         <collect field="value" to="total2"/>
         <collect field="value" to="Grand total c"/>
         <collect field="otherValue" to="Big decimal"/>
+    </class>
+    <class name="com.github.jpingus.TestInvoice$Group" context="group">
+        <collect to="id" what="this.id"/>
     </class>
 
 </aggregator4j>
