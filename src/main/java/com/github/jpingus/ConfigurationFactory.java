@@ -9,7 +9,11 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 public class ConfigurationFactory {
     private static final Log LOGGER = LogFactory.getLog(ConfigurationFactory.class);
@@ -45,12 +49,103 @@ public class ConfigurationFactory {
         Document docConfig;
         try {
             builder = factory.newDocumentBuilder();
+
             docConfig = builder.parse(config);
         } catch (Exception e) {
             throw new Error("Could not parse aggeregator4j config", e);
         }
         return analyse(docConfig);
 
+    }
+
+    public static void extractConfig(AggregatorContext context, OutputStream out) {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder;
+        Document docConfig;
+        try {
+            builder = factory.newDocumentBuilder();
+        } catch (Exception e) {
+            throw new Error("Could not parse aggeregator4j config", e);
+        }
+        docConfig = builder.newDocument();
+        Element root = docConfig.createElement(AGGREGATOR4J);
+        docConfig.appendChild(root);
+        root.appendChild(withAttribute(
+                docConfig.createElement(PACKAGE)
+                , NAME, context.getPackageStart())
+        );
+        context.getRegisteredNamespaces().forEach((namespace, clazz) ->
+                root.appendChild(withAttribute(withAttribute(
+                        docConfig.createElement(FUNCTION)
+                        , NAMESPACE, namespace)
+                        , REGISTER_CLASS, clazz.getName())));
+        context.getAnalysedCache().forEach((clazz, analysed) -> {
+            if (analysed.classType == Analysed.CLASS_TYPE.PROCESSABLE) {
+                Element classElement = withAttribute(withAttribute(
+                        docConfig.createElement(CLASS)
+                        , NAME, clazz.getName())
+                        , CONTEXT, analysed.classContext);
+                root.appendChild(classElement);
+                if (analysed.classCollects != null)
+                    analysed.classCollects.forEach(collect ->
+                            classElement.appendChild(withAttribute(withAttribute(withAttribute(
+                                    docConfig.createElement(COLLECT)
+                                    , WHAT, collect.what)
+                                    , TO, collect.to)
+                                    , WHEN, collect.when)
+                            ));
+                if (analysed.collects != null)
+                    analysed.collects.forEach((field, collects) ->
+                            collects.forEach(collect ->
+                                    classElement.appendChild(withAttribute(withAttribute(withAttribute(
+                                            docConfig.createElement(COLLECT)
+                                            , FIELD, field)
+                                            , TO, collect.to)
+                                            , WHEN, collect.when)
+
+                                    )));
+                if (analysed.executes != null)
+                    analysed.executes.forEach((field, executes) ->
+                            executes.forEach(execute ->
+                                    classElement.appendChild(withAttribute(withAttribute(withAttribute(
+                                            docConfig.createElement(EXECUTE)
+                                            , FIELD, field)
+                                            , JEXL, execute.jexl)
+                                            , WHEN, execute.when)
+                                    )));
+                if (analysed.variables != null)
+                    analysed.variables.forEach((field, variable) ->
+                            classElement.appendChild(withAttribute(withAttribute(
+                                    docConfig.createElement(VARIABLE)
+                                    , FIELD, field)
+                                    , NAME, variable)
+                            ));
+            }
+        });
+        prettyPrint(docConfig, out);
+
+    }
+
+    private static Element withAttribute(Element element, String attributeName, String attributeValue) {
+        if (attributeValue != null)
+            element.setAttribute(attributeName, attributeValue);
+        return element;
+    }
+
+    private static void prettyPrint(Document xml, OutputStream out) {
+        Transformer tf = null;
+        try {
+            tf = TransformerFactory.newInstance().newTransformer();
+        } catch (TransformerConfigurationException e) {
+            throw new Error("Cannot create transformer ", e);
+        }
+        tf.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+        tf.setOutputProperty(OutputKeys.INDENT, "yes");
+        try {
+            tf.transform(new DOMSource(xml), new StreamResult(out));
+        } catch (TransformerException e) {
+            throw new Error("Could not write config to stream", e);
+        }
     }
 
     private static AggregatorContext analyse(Document docConfig) {
@@ -126,7 +221,7 @@ public class ConfigurationFactory {
     private static void analyseClassConfig(Node item, Analysed analysed) {
         if (item.getNodeType() == Node.ELEMENT_NODE) {
             String field = getAttribute(item, FIELD);
-            String when = getAttribute(item, WHEN, "");
+            String when = getAttribute(item, WHEN);
             if (EXECUTE.equals(item.getNodeName())) {
                 String jexl = getAttribute(item, JEXL);
                 if (field != null && jexl != null)
@@ -155,12 +250,8 @@ public class ConfigurationFactory {
 
 
     private static String getAttribute(Node item, String attributeName) {
-        return getAttribute(item, attributeName, null);
-    }
-
-    private static String getAttribute(Node item, String attributeName, String defaultValue) {
         Node attribute = item.getAttributes().getNamedItem(attributeName);
-        if (attribute == null) return defaultValue;
+        if (attribute == null) return null;
         return attribute.getNodeValue();
     }
 

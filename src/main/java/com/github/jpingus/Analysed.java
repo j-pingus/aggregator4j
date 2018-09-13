@@ -176,7 +176,7 @@ class Analysed {
 
         public Execute(String jexl, String when) {
             this.jexl = jexl;
-            this.when = when;
+            this.when = "".equals(when) ? null : when;
         }
 
         @Override
@@ -206,8 +206,8 @@ class Analysed {
 
         public Collect(String to, String what, String when) {
             this.to = to;
-            this.what = what;
-            this.when = when;
+            this.what = "this".equals(what) ? null : what;
+            this.when = "".equals(when) ? null : when;
         }
 
         @Override

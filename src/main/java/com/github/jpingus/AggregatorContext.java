@@ -11,7 +11,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     private static final Log LOGGER = LogFactory.getLog(AggregatorContext.class);
     private final Map<Class, Analysed> analysedCache = new HashMap<>();
     private JexlEngine jexl;
-    private Map<String, Object> registeredNamespaces;
+    private Map<String, Class> registeredNamespaces;
     private JexlContext localContext;
     private Map<String, Aggregator> aggregators;
     private StringBuilder processTrace;
@@ -25,6 +25,15 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     public AggregatorContext() {
         this(true);
     }
+
+    Map<String, Class> getRegisteredNamespaces() {
+        return registeredNamespaces;
+    }
+
+    Map<Class, Analysed> getAnalysedCache() {
+        return analysedCache;
+    }
+
 
     public AggregatorContext(boolean debug) {
         this.jexl = new JexlBuilder().create();
@@ -41,10 +50,10 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * function will benefit from all public methods as functions in that namespace
      *
      * @param namespace the string to prefix the functions
-     * @param o         the object or class containing functions to register
+     * @param clazz     the class containing functions to register
      */
-    public void register(String namespace, Object o) {
-        registeredNamespaces.put(namespace, o);
+    public void register(String namespace, Class clazz) {
+        registeredNamespaces.put(namespace, clazz);
     }
 
     public Object execute(String field, String formula) {
