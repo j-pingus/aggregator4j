@@ -1,4 +1,5 @@
 package com.github.jpingus;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Assert;
@@ -56,6 +57,7 @@ public class ProcessorTest {
         Assert.assertEquals("[a,b,c,a,a]", b.ccm2);
         Assert.assertEquals(true, myAggregatorContext.contains("All my ccm2 ids", "a"));
         Assert.assertEquals(new Double(4.42), b.totalBig.doubleValue(), 0.001);
+        ConfigurationFactory.extractConfig(myAggregatorContext, System.out);
     }
 
     @Test
@@ -100,6 +102,7 @@ public class ProcessorTest {
         err.test = 1;
         Processor.process(err);
     }
+
     @Test
     public void Error2Test() {
         Error2 err = new Error2();
@@ -112,8 +115,9 @@ public class ProcessorTest {
         @Execute("sum('test2')")
         int test;
     }
-    class Error2{
-         @Collect("test")
+
+    class Error2 {
+        @Collect("test")
         int test;
         @Execute("sum('test2')")
         int totalTest;

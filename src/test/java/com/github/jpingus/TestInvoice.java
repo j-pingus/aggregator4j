@@ -73,5 +73,6 @@ public class TestInvoice {
 		Assert.assertEquals(70, toTest.groups[1].total.totalPrice);
 		Assert.assertEquals(700, toTest.groups[2].total.totalPrice);
 		Assert.assertEquals(7, context.sum("id"));
+		ConfigurationFactory.extractConfig(context,System.out);
 	}
 }
