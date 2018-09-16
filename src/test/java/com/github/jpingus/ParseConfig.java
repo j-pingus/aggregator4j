@@ -29,38 +29,4 @@ public class ParseConfig {
         Assert.assertEquals(new Analysed(TestInvoice.Invoice.class, "com.github.jpingus"), context.getAnalysed(TestInvoice.Invoice.class));
     }
 
-    /*
-        <function namespace="my" registerClass="com.github.jpingus.Functions"/>
-        <package name="com.github.jpingus"/>
-        <class name="com.github.jpingus.Business">
-            <execute field="total" jexl="sum('total')"/>
-            <collect field="ccm2" to="All my ccm2 ids" />
-            <variable name="ccm2" field="ccm2"/>
-        </class>
-    */
-
-    /*
-        <function namespace="my" registerClass="com.github.jpingus.Functions"/>
-    */
-
-    /*
-        <package name="com.github.jpingus"/>
-    */
-
-    /*
-        <class name="com.github.jpingus.Business">
-            <execute field="total" jexl="sum('total')"/>
-            <collect field="ccm2" to="All my ccm2 ids" />
-            <variable name="ccm2" field="ccm2"/>
-        </class>
-    */
-
-    /*
-        <class name="com.github.jpingus.Business">
-            <execute field="total" jexl="sum('total')"/>
-            <collect field="ccm2" to="All my ccm2 ids" />
-            <variable name="ccm2" field="ccm2"/>
-        </class>
-    */
-
 }
