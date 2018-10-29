@@ -152,9 +152,10 @@ public class Processor {
             }
             if (analysed.classCollects != null) {
                 for (Analysed.Collect collect : analysed.classCollects) {
-                    if (applicable(o, collect.when, localContext)) {
+                	String formula="(" + collect.what.replaceAll("this\\.", prefix + ".") + ") ";
+                    if (applicable(o, collect.when, localContext) && !isNull(formula,localContext)) {
                         localContext.collect(evaluate(o, collect.to, localContext),
-                                "(" + collect.what.replaceAll("this\\.", prefix + ".") + ") ");
+                                formula);
                     }
                 }
             }
@@ -164,6 +165,10 @@ public class Processor {
         }
     }
 
+
+    private static boolean isNull(String formula, AggregatorContext localContext) {
+		return localContext.evaluate(formula)==null;
+	}
 
     private static Object get(Object o, String fieldName, AggregatorContext localContext) {
         if (fieldName == null || "".equals(fieldName) || fieldName.contains("$"))
@@ -182,7 +187,8 @@ public class Processor {
             return value;
         }
         localContext.set("this", o);
-        return localContext.evaluate(value.substring(5)).toString();
+        Object evaluated = localContext.evaluate(value.substring(5));
+        return evaluated==null?"null":evaluated.toString();
     }
 
     private static boolean isNull(Object o, String fieldName, AggregatorContext localContext) {

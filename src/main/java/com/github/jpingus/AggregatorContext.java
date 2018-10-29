@@ -82,7 +82,6 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             return null;
         }
     }
-
     /**
      * Joins all objects that have been collected in an aggregator into a string
      * separated by separator
