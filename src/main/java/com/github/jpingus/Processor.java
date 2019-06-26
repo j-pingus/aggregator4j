@@ -1,27 +1,17 @@
 package com.github.jpingus;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 public class Processor {
     private static final Log LOGGER = LogFactory.getLog(Processor.class);
-
-    static class ExecuteContext {
-        String field;
-        String formula;
-        boolean executed = false;
-
-        public ExecuteContext(String parent, String field, String formula) {
-            this.field = parent + "." + field;
-            this.formula = formula.replaceAll("this\\.", parent + ".");
-        }
-    }
 
     /**
      * Analyse recursively an object, collecting all the @Collects to aggregators,
@@ -152,8 +142,8 @@ public class Processor {
             }
             if (analysed.classCollects != null) {
                 for (Analysed.Collect collect : analysed.classCollects) {
-                	String formula="(" + collect.what.replaceAll("this\\.", prefix + ".") + ") ";
-                    if (applicable(o, collect.when, localContext) && !isNull(formula,localContext)) {
+                    String formula = "(" + collect.what.replaceAll("this\\.", prefix + ".") + ") ";
+                    if (applicable(o, collect.when, localContext) && !isNull(formula, localContext)) {
                         localContext.collect(evaluate(o, collect.to, localContext),
                                 formula);
                     }
@@ -165,19 +155,22 @@ public class Processor {
         }
     }
 
-
     private static boolean isNull(String formula, AggregatorContext localContext) {
-		return localContext.evaluate(formula)==null;
-	}
+        return localContext.evaluate(formula) == null;
+    }
 
     private static Object get(Object o, String fieldName, AggregatorContext localContext) {
         if (fieldName == null || "".equals(fieldName) || fieldName.contains("$"))
             return null;
-        localContext.set("this", o);
-        if (localContext.isDebug())
-            LOGGER.debug("Get " + o.getClass() + " " + fieldName);
-        return localContext.evaluate("this." + fieldName);
-
+        try {
+            Field f = o.getClass().getDeclaredField(fieldName);
+            if(!f.isAccessible())
+                f.setAccessible(true);
+            return f.get(o);
+        } catch (IllegalAccessException|NoSuchFieldException e) {
+            LOGGER.warn("Field not found:"+fieldName);
+            return null;
+        }
     }
 
     private static String evaluate(Object o, String value, AggregatorContext localContext) {
@@ -188,7 +181,7 @@ public class Processor {
         }
         localContext.set("this", o);
         Object evaluated = localContext.evaluate(value.substring(5));
-        return evaluated==null?"null":evaluated.toString();
+        return evaluated == null ? "null" : evaluated.toString();
     }
 
     private static boolean isNull(Object o, String fieldName, AggregatorContext localContext) {
@@ -200,13 +193,22 @@ public class Processor {
             return true;
         localContext.set("this", o);
         Object evaluated = localContext.evaluate(when);
-        Boolean ret = evaluated==null?Boolean.FALSE:new Boolean(evaluated.toString());
+        Boolean ret = evaluated == null ? Boolean.FALSE : new Boolean(evaluated.toString());
         if (localContext.isDebug())
             LOGGER.debug("applicable :" + when + " is " + ret);
         return ret;
     }
 
+    static class ExecuteContext {
+        String field;
+        String formula;
+        boolean executed = false;
 
+        public ExecuteContext(String parent, String field, String formula) {
+            this.field = parent + "." + field;
+            this.formula = formula.replaceAll("this\\.", parent + ".");
+        }
+    }
 
 
 }
