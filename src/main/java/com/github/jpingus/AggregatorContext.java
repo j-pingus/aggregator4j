@@ -34,7 +34,6 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return analysedCache;
     }
 
-
     public AggregatorContext(boolean debug) {
         this.jexl = new JexlBuilder().create();
         this.localContext = new MapContext();
@@ -137,6 +136,21 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     }
 
     /**
+	 * Concatenates all the strings if they are notnull
+	 * 
+	 * @param values
+	 * @return
+	 */
+	public String concat(String... values) {
+		StringBuffer sb = new StringBuffer();
+		for (String value : values) {
+			if (value != null)
+				sb.append(value);
+		}
+		return sb.toString();
+	}
+
+	/**
      * Sum all objects collected in an aggregator (may be problematic if JEXL cannot
      * sum those objects with "+" operand)
      *
@@ -337,11 +351,37 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return 0;
     }
 
-    synchronized Analysed getAnalysed(Class objectClass) {
-        if (!analysedCache.containsKey(objectClass)) {
-            Analysed analysed = new Analysed(objectClass, this.getPackageStart());
+	public void cacheAndValidate(Class objectClass, Analysed analysed) {
+		if (analysed.executes != null && analysed.collects != null) {
+			for (String field : analysed.executes.keySet()) {
+				if (analysed.collects.containsKey(field)) {
+					List<Analysed.Execute> executes = analysed.executes.get(field);
+					List<Analysed.Collect> collects = analysed.collects.get(field);
+					if (!executes.isEmpty() && !collects.isEmpty()) {
+						Optional<Analysed.Execute> execute = executes.stream().filter(e -> e.jexl.equals("null")).findFirst();
+						if (execute.isPresent()) {
+							if (collects.stream().filter(c -> c.when == null).findFirst().isPresent()) {
+								LOGGER.error("Collecting nullable field '" + objectClass.getName() + "." + field
+										+ "' without when condition (suggestion add : when=\"not(" + execute.get().when
+										+ ")\"");
+							} else {
+								LOGGER.warn("Collecting nullable field '" + field + "' with when condition");
+							}
+						} else {
+							LOGGER.info("Collecting field '" + field + "' and execute may change its value ");
+						}
+					}
+				}
+			}
+		}
             analysedCache.put(objectClass, analysed);
         }
+
+	synchronized Analysed getAnalysed(Class objectClass) {
+		if (!analysedCache.containsKey(objectClass)) {
+			Analysed analysed = new Analysed(objectClass, this.getPackageStart());
+			cacheAndValidate(objectClass, analysed);
+		}
         return analysedCache.get(objectClass);
     }
 

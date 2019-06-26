@@ -1,13 +1,13 @@
 package com.github.jpingus;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 public class Processor {
     private static final Log LOGGER = LogFactory.getLog(Processor.class);
@@ -199,7 +199,8 @@ public class Processor {
         if (when == null || "".equals(when))
             return true;
         localContext.set("this", o);
-        Boolean ret = new Boolean(localContext.evaluate(when).toString());
+        Object evaluated = localContext.evaluate(when);
+        Boolean ret = evaluated==null?Boolean.FALSE:new Boolean(evaluated.toString());
         if (localContext.isDebug())
             LOGGER.debug("applicable :" + when + " is " + ret);
         return ret;

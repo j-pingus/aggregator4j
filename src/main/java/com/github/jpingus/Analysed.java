@@ -3,6 +3,8 @@ package com.github.jpingus;
 import java.lang.reflect.Field;
 import java.util.*;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 class Analysed {
     CLASS_TYPE classType;
     String classContext;
@@ -11,6 +13,7 @@ class Analysed {
     Map<String, List<Execute>> executes;
     Map<String, String> variables;
     List<String> otherFields;
+	private static final Log LOGGER = LogFactory.getLog(Analysed.class);
 
     public Analysed(Class objectClass, String packageStart) {
         Context cx = (Context) objectClass.getDeclaredAnnotation(Context.class);
@@ -46,6 +49,9 @@ class Analysed {
                 com.github.jpingus.Execute executors[] = f.getDeclaredAnnotationsByType(com.github.jpingus.Execute.class);
                 com.github.jpingus.Collect collectors[] = f.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class);
                 String fieldName = sanitizeFieldName(f.getName());
+				if (executors != null && executors.length > 0 && collectors != null && collectors.length > 0) {
+					LOGGER.warn(collectors.length + " @Collect ignored for " + fieldName);
+				}
                 if (executors != null && executors.length > 0) {
                     executes.put(fieldName, analyse(executors));
                 } else if (collectors != null && collectors.length > 0) {

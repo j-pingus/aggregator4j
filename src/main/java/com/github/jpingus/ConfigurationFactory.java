@@ -213,7 +213,11 @@ public class ConfigurationFactory {
             for (int i = 0; i < level1.getLength(); i++) {
                 analyseClassConfig(level1.item(i), analysed);
             }
-            context.analyse(clazz, analysed);
+            analysed.classType = Analysed.CLASS_TYPE.PROCESSABLE;
+            analysed.addOtherFields(clazz);
+            analysed.prune();
+
+            context.cacheAndValidate(clazz, analysed);
         } else
             LOGGER.warn(NAME + " attribute missing for " + CLASS);
     }
