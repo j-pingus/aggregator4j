@@ -114,20 +114,23 @@ public class Processor {
 
             }
             for (String field : analysed.variables.keySet()) {
-                localContext.addVariable(analysed.variables.get(field), get(o, field, localContext));
+                localContext.addVariable(analysed.variables.get(field), get(o, field));
             }
             //First potentially seek deeper.
             for (String field : analysed.otherFields) {
-                process(prefix + "." + field, get(o, field, localContext), localContext,
+                process(prefix + "." + field, get(o, field), localContext,
                         executeContexts);
             }
             //Collect the fields
             for (String field : analysed.collects.keySet()) {
-                if (!isNull(o, field, localContext)) {
+                Object fieldValue = get(o,field);
+                if (fieldValue != null) {
                     String add = prefix + "." + field;
                     for (Analysed.Collect collect : analysed.collects.get(field)) {
                         if (applicable(o, collect.when, localContext)) {
-                            localContext.collect(evaluate(o, collect.to, localContext), add);
+                            final String aggregatorName=evaluate(o, collect.to, localContext);
+                            //localContext.collect(aggregatorName, add);
+                            localContext.collectNg(aggregatorName, fieldValue);
                         }
                     }
                 }
@@ -159,7 +162,7 @@ public class Processor {
         return localContext.evaluate(formula) == null;
     }
 
-    private static Object get(Object o, String fieldName, AggregatorContext localContext) {
+    private static Object get(Object o, String fieldName) {
         if (fieldName == null || "".equals(fieldName) || fieldName.contains("$"))
             return null;
         try {
@@ -184,8 +187,8 @@ public class Processor {
         return evaluated == null ? "null" : evaluated.toString();
     }
 
-    private static boolean isNull(Object o, String fieldName, AggregatorContext localContext) {
-        return get(o, fieldName, localContext) == null;
+    private static boolean isNull(Object o, String fieldName) {
+        return get(o, fieldName) == null;
     }
 
     private static boolean applicable(Object o, String when, AggregatorContext localContext) {

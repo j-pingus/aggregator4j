@@ -50,9 +50,9 @@ public class LoadTest {
     @Test
     public void testOne() {
         Invoice i = test(1);
-        Assert.assertEquals(2.92, i.averageUnitPrice, 0.01);
-        Assert.assertEquals(200.0, i.totalInvoice,0.01);
         Assert.assertEquals(110, i.totalQuantity);
+        Assert.assertEquals(200.0, i.totalInvoice,0.01);
+        Assert.assertEquals(2.92, i.averageUnitPrice, 0.01);
     }
 
     @Test

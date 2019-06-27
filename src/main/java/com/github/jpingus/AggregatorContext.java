@@ -26,13 +26,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         this(true);
     }
 
-    Map<String, Class> getRegisteredNamespaces() {
-        return registeredNamespaces;
-    }
-
-    Map<Class, Analysed> getAnalysedCache() {
-        return analysedCache;
-    }
+    ;
 
     public AggregatorContext(boolean debug) {
         this.jexl = new JexlBuilder().create();
@@ -42,6 +36,14 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         this.processTrace = new StringBuilder();
         this.debug = debug;
         this.packageStart = null;
+    }
+
+    Map<String, Class> getRegisteredNamespaces() {
+        return registeredNamespaces;
+    }
+
+    Map<Class, Analysed> getAnalysedCache() {
+        return analysedCache;
     }
 
     /**
@@ -81,6 +83,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             return null;
         }
     }
+
     /**
      * Joins all objects that have been collected in an aggregator into a string
      * separated by separator
@@ -136,21 +139,21 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     }
 
     /**
-	 * Concatenates all the strings if they are notnull
-	 * 
-	 * @param values
-	 * @return
-	 */
-	public String concat(String... values) {
-		StringBuffer sb = new StringBuffer();
-		for (String value : values) {
-			if (value != null)
-				sb.append(value);
-		}
-		return sb.toString();
-	}
+     * Concatenates all the strings if they are notnull
+     *
+     * @param values
+     * @return
+     */
+    public String concat(String... values) {
+        StringBuffer sb = new StringBuffer();
+        for (String value : values) {
+            if (value != null)
+                sb.append(value);
+        }
+        return sb.toString();
+    }
 
-	/**
+    /**
      * Sum all objects collected in an aggregator (may be problematic if JEXL cannot
      * sum those objects with "+" operand)
      *
@@ -158,7 +161,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return the sum or null if not found or empty
      */
     public Object sum(String aggregator) {
-        return aggregate(aggregator, "sum", true, a -> a.join("+"), null);
+        return aggregate(aggregator, OPERATIONS.SUM, null);
     }
 
     /**
@@ -168,12 +171,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return the average or 0.0d if not found or empty
      */
     public Object avg(final String aggregator) {
-        int count = count(aggregator);
-        if (count > 0) {
-            sum(aggregator);
-            return evaluate("$sum/" + count(aggregator) + ".0");
-        }
-        return new Double(0.0d);
+        return aggregate(aggregator,OPERATIONS.AVG,new Double(0.0d));
     }
 
     /**
@@ -183,7 +181,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return an array (may be empty)
      */
     public Object[] asArray(String aggregator) {
-        return (Object[]) aggregate(aggregator, "asArray", false, a -> "[" + a.join(",") + "]", new Object[]{});
+        return (Object[]) aggregate(aggregator,OPERATIONS.AS_ARRAY,new Object[]{});
     }
 
     /**
@@ -193,9 +191,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return the distinct set of elements (may be empty)
      */
     public Set<Object> asSet(String aggregator) {
-        @SuppressWarnings("unchecked")
-        Set<Object> ret = (Set<Object>) aggregate(aggregator, "asSet", false, a -> "{" + a.join(",") + "}", new HashSet<>());
-        return ret;
+        return (Set<Object>)aggregate(aggregator,OPERATIONS.AS_SET,new HashSet<>());
     }
 
     /**
@@ -205,6 +201,33 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      */
     public Set<String> aggregators() {
         return Collections.unmodifiableSet(aggregators.keySet());
+    }
+
+    private Object aggregate(String aggregator, OPERATIONS op, Object orElse) {
+        Object ret = null;
+        if (aggregators.containsKey(aggregator)) {
+            Aggregator a = aggregators.get(aggregator);
+            if (a.values.size() == 0 && a.formulas.size() == 0)
+                return orElse;
+            a.reduce(this);
+            switch (op) {
+                case SUM:
+                    return a.sum();
+                case AVG:
+                    return a.avg();
+                case AS_ARRAY:
+                    return a.valuesArray();
+                case AS_SET:
+                    return a.valuesSet();
+            }
+            if (debug)
+                LOGGER.debug(op + " of " + aggregator + "=" + ret);
+            return ret;
+        } else {
+            LOGGER.warn("Could not find aggregator with name '" + aggregator + "'");
+        }
+        return orElse;
+
     }
 
     protected Object aggregate(String aggregator, String name, boolean canSplit, AggregatorJEXLBuilder expressionBuilder, Object orElse) {
@@ -249,6 +272,13 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             processTrace.append("\"collect\":{\"aggregator\":\"").append(aggregator).append("\",\"formula\":\"")
                     .append(objectReference).append("\"},");
         }
+    }
+
+    public void collectNg(String aggregator, Object value) {
+        if (!aggregators.containsKey(aggregator))
+            aggregators.put(aggregator, new Aggregator());
+        aggregators.get(aggregator).appendValue(value);
+
     }
 
     @Override
@@ -351,39 +381,41 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return 0;
     }
 
-	public void cacheAndValidate(Class objectClass, Analysed analysed) {
-		if (analysed.executes != null && analysed.collects != null) {
-			for (String field : analysed.executes.keySet()) {
-				if (analysed.collects.containsKey(field)) {
-					List<Analysed.Execute> executes = analysed.executes.get(field);
-					List<Analysed.Collect> collects = analysed.collects.get(field);
-					if (!executes.isEmpty() && !collects.isEmpty()) {
-						Optional<Analysed.Execute> execute = executes.stream().filter(e -> e.jexl.equals("null")).findFirst();
-						if (execute.isPresent()) {
-							if (collects.stream().filter(c -> c.when == null).findFirst().isPresent()) {
-								LOGGER.error("Collecting nullable field '" + objectClass.getName() + "." + field
-										+ "' without when condition (suggestion add : when=\"not(" + execute.get().when
-										+ ")\"");
-							} else {
-								LOGGER.warn("Collecting nullable field '" + field + "' with when condition");
-							}
-						} else {
-							LOGGER.info("Collecting field '" + field + "' and execute may change its value ");
-						}
-					}
-				}
-			}
-		}
-            analysedCache.put(objectClass, analysed);
+    public void cacheAndValidate(Class objectClass, Analysed analysed) {
+        if (analysed.executes != null && analysed.collects != null) {
+            for (String field : analysed.executes.keySet()) {
+                if (analysed.collects.containsKey(field)) {
+                    List<Analysed.Execute> executes = analysed.executes.get(field);
+                    List<Analysed.Collect> collects = analysed.collects.get(field);
+                    if (!executes.isEmpty() && !collects.isEmpty()) {
+                        Optional<Analysed.Execute> execute = executes.stream().filter(e -> e.jexl.equals("null")).findFirst();
+                        if (execute.isPresent()) {
+                            if (collects.stream().filter(c -> c.when == null).findFirst().isPresent()) {
+                                LOGGER.error("Collecting nullable field '" + objectClass.getName() + "." + field
+                                        + "' without when condition (suggestion add : when=\"not(" + execute.get().when
+                                        + ")\"");
+                            } else {
+                                LOGGER.warn("Collecting nullable field '" + field + "' with when condition");
+                            }
+                        } else {
+                            LOGGER.info("Collecting field '" + field + "' and execute may change its value ");
+                        }
+                    }
+                }
+            }
         }
+        analysedCache.put(objectClass, analysed);
+    }
 
-	synchronized Analysed getAnalysed(Class objectClass) {
-		if (!analysedCache.containsKey(objectClass)) {
-			Analysed analysed = new Analysed(objectClass, this.getPackageStart());
-			cacheAndValidate(objectClass, analysed);
-		}
+    synchronized Analysed getAnalysed(Class objectClass) {
+        if (!analysedCache.containsKey(objectClass)) {
+            Analysed analysed = new Analysed(objectClass, this.getPackageStart());
+            cacheAndValidate(objectClass, analysed);
+        }
         return analysedCache.get(objectClass);
     }
+
+    private enum OPERATIONS {SUM, AS_ARRAY, AS_SET, AVG}
 
     public interface AggregatorJEXLBuilder {
         String buildExpression(Aggregator a);
@@ -394,8 +426,12 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      */
     private static class Aggregator {
         List<String> formulas;
+        List values;
+        Class classType;
 
         private Aggregator() {
+            this.values = new ArrayList<>();
+            this.classType = null;
             this.formulas = new ArrayList<>();
         }
 
@@ -415,7 +451,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         }
 
         private int count() {
-            return formulas.size();
+            return formulas.size()+values.size();
         }
 
         private String join(String s) {
@@ -424,9 +460,53 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 
         public void clear() {
             formulas.clear();
+            values.clear();
+        }
 
+        public void appendValue(Object value) {
+            if (this.classType == null) {
+                this.classType = value.getClass();
+ //           } else if (this.classType != value.getClass()) {
+ //               LOGGER.error("Apples and Pears:" + this.classType.getSimpleName() + " - " + value.getClass().getSimpleName());
+            }
+            this.values.add(value);
+        }
+
+        public void reduce(AggregatorContext localContext) {
+            if (formulas.isEmpty()) return;
+            formulas.forEach(formula -> appendValue(localContext.evaluate(formula)));
+            formulas.clear();
+        }
+        public Object avg(){
+            if (this.classType == Integer.class)
+                return ((Integer)sum()).doubleValue()/values.size();
+            if(this.classType==Double.class)
+                return ((Double)sum())/values.size();
+            return null;
+        }
+        public Object sum() {
+            if (this.classType == Integer.class){
+                int ret =0;
+                for(Integer value:(List<Integer>)this.values)ret+=value;
+                return new Integer(ret);
+            }
+            if (this.classType == Double.class){
+                double ret=0.0;
+                for(Double value:(List<Double>) this.values)ret+=value;
+                return new Double(ret);
+            }
+            LOGGER.error("Cannot sum type " + this.classType.getSimpleName());
+            return null;
+        }
+
+
+        public Object[] valuesArray() {
+            return this.values.toArray();
+        }
+        public Set valuesSet(){
+            Set ret = new HashSet();
+            ret.addAll(this.values);
+            return ret;
         }
     }
-
-
 }
