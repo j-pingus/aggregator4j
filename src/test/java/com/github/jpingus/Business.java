@@ -1,5 +1,6 @@
 package com.github.jpingus;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.*;
 
 public class Business {
@@ -38,4 +39,6 @@ public class Business {
     public String ccm2;
     @Execute("avg('Big decimal')")
     public BigDecimal totalBig;
+    @Execute("sum('SuperTotal')")
+    public BigInteger superTotal;
 }

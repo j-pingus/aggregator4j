@@ -93,7 +93,8 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return a String with all aggregator's element joined by sperator or else an empty string if aggregator not found
      */
     public Object join(String separator, String aggregator) {
-        return aggregate(aggregator, "join", false, a -> a.join("+'" + separator + "'+"), "");
+        return aggregate(aggregator,OPERATIONS.JOIN,"",separator);
+                //aggregate(aggregator, "join", false, a -> a.join("+'" + separator + "'+"), "");
     }
 
     /**
@@ -161,7 +162,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return the sum or null if not found or empty
      */
     public Object sum(String aggregator) {
-        return aggregate(aggregator, OPERATIONS.SUM, null);
+        return aggregate(aggregator, OPERATIONS.SUM, null,null);
     }
 
     /**
@@ -171,7 +172,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return the average or 0.0d if not found or empty
      */
     public Object avg(final String aggregator) {
-        return aggregate(aggregator,OPERATIONS.AVG,new Double(0.0d));
+        return aggregate(aggregator,OPERATIONS.AVG,new Double(0.0d),null);
     }
 
     /**
@@ -181,7 +182,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return an array (may be empty)
      */
     public Object[] asArray(String aggregator) {
-        return (Object[]) aggregate(aggregator,OPERATIONS.AS_ARRAY,new Object[]{});
+        return (Object[]) aggregate(aggregator,OPERATIONS.AS_ARRAY,new Object[]{},null);
     }
 
     /**
@@ -191,7 +192,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return the distinct set of elements (may be empty)
      */
     public Set<Object> asSet(String aggregator) {
-        return (Set<Object>)aggregate(aggregator,OPERATIONS.AS_SET,new HashSet<>());
+        return (Set<Object>)aggregate(aggregator,OPERATIONS.AS_SET,new HashSet<>(),null);
     }
 
     /**
@@ -203,7 +204,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return Collections.unmodifiableSet(aggregators.keySet());
     }
 
-    private Object aggregate(String aggregator, OPERATIONS op, Object orElse) {
+    private Object aggregate(String aggregator, OPERATIONS op, Object orElse,String parameter) {
         Object ret = null;
         if (aggregators.containsKey(aggregator)) {
             Aggregator a = aggregators.get(aggregator);
@@ -219,6 +220,8 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
                     return a.valuesArray();
                 case AS_SET:
                     return a.valuesSet();
+                case JOIN:
+                    return a.join(parameter);
             }
             if (debug)
                 LOGGER.debug(op + " of " + aggregator + "=" + ret);
@@ -415,7 +418,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return analysedCache.get(objectClass);
     }
 
-    private enum OPERATIONS {SUM, AS_ARRAY, AS_SET, AVG}
+    private enum OPERATIONS {SUM, AS_ARRAY, AS_SET, AVG, JOIN}
 
     public interface AggregatorJEXLBuilder {
         String buildExpression(Aggregator a);
@@ -455,7 +458,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         }
 
         private String join(String s) {
-            return String.join(s, formulas);
+            return String.join(s, values);
         }
 
         public void clear() {

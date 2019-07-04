@@ -6,6 +6,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.math.BigInteger;
 import java.util.*;
 
 public class ProcessorTest {
@@ -57,6 +58,7 @@ public class ProcessorTest {
         Assert.assertEquals("[a,b,c,a,a]", b.ccm2);
         Assert.assertEquals(true, myAggregatorContext.contains("All my ccm2 ids", "a"));
         Assert.assertEquals(new Double(4.42), b.totalBig.doubleValue(), 0.001);
+        Assert.assertEquals(BigInteger.valueOf(40),b.superTotal);
         ConfigurationFactory.extractConfig(myAggregatorContext, System.out);
     }
 

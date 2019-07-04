@@ -114,16 +114,16 @@ public class Processor {
 
             }
             for (String field : analysed.variables.keySet()) {
-                localContext.addVariable(analysed.variables.get(field), get(o, field));
+                localContext.addVariable(analysed.variables.get(field), get(o, field, localContext));
             }
             //First potentially seek deeper.
             for (String field : analysed.otherFields) {
-                process(prefix + "." + field, get(o, field), localContext,
+                process(prefix + "." + field, get(o, field, localContext), localContext,
                         executeContexts);
             }
             //Collect the fields
             for (String field : analysed.collects.keySet()) {
-                Object fieldValue = get(o,field);
+                Object fieldValue = get(o,field, localContext);
                 if (fieldValue != null) {
                     String add = prefix + "." + field;
                     for (Analysed.Collect collect : analysed.collects.get(field)) {
@@ -162,18 +162,14 @@ public class Processor {
         return localContext.evaluate(formula) == null;
     }
 
-    private static Object get(Object o, String fieldName) {
+    private static Object get(Object o, String fieldName, AggregatorContext localContext) {
         if (fieldName == null || "".equals(fieldName) || fieldName.contains("$"))
             return null;
-        try {
-            Field f = o.getClass().getDeclaredField(fieldName);
-            if(!f.isAccessible())
-                f.setAccessible(true);
-            return f.get(o);
-        } catch (IllegalAccessException|NoSuchFieldException e) {
-            LOGGER.warn("Field not found:"+fieldName);
-            return null;
-        }
+        localContext.set("this", o);
+        if (localContext.isDebug())
+            LOGGER.debug("Get " + o.getClass() + " " + fieldName);
+        return localContext.evaluate("this." + fieldName);
+
     }
 
     private static String evaluate(Object o, String value, AggregatorContext localContext) {
@@ -185,10 +181,6 @@ public class Processor {
         localContext.set("this", o);
         Object evaluated = localContext.evaluate(value.substring(5));
         return evaluated == null ? "null" : evaluated.toString();
-    }
-
-    private static boolean isNull(Object o, String fieldName) {
-        return get(o, fieldName) == null;
     }
 
     private static boolean applicable(Object o, String when, AggregatorContext localContext) {
