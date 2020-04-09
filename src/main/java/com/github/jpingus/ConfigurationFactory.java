@@ -1,5 +1,11 @@
 package com.github.jpingus;
 
+import com.github.jpingus.model.Aggregator4j;
+import com.github.jpingus.model.Class;
+import com.github.jpingus.model.Collect;
+import com.github.jpingus.model.Execute;
+import com.github.jpingus.model.Function;
+import com.github.jpingus.model.Variable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.w3c.dom.Document;
@@ -47,6 +53,7 @@ public class ConfigurationFactory {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder;
         Document docConfig;
+        Aggregator4j configModel;
         try {
             builder = factory.newDocumentBuilder();
 
@@ -54,8 +61,97 @@ public class ConfigurationFactory {
         } catch (Exception e) {
             throw new Error("Could not parse aggeregator4j config", e);
         }
-        return analyse(docConfig);
+        configModel = unMarshall(docConfig);
+        return buildAggregatorContext(configModel);
 
+    }
+
+    private static Aggregator4j unMarshall(Document docConfig) {
+        Aggregator4j aggregator4j = new Aggregator4j();
+        Element root = docConfig.getDocumentElement();
+        if (!AGGREGATOR4J.equals(root.getTagName()))
+            throw new Error("config root must be aggregator4j");
+        NodeList level1 = root.getChildNodes();
+        for (int i = 0; i < level1.getLength(); i++) {
+             if (level1.item(i).getNodeType() == Node.ELEMENT_NODE) {
+                String nodeName = level1.item(i).getNodeName();
+                if (FUNCTION.equals(nodeName)) {
+                    unMarshallFunction(aggregator4j, level1.item(i));
+                } else if (PACKAGE.equals(nodeName)) {
+                    unMarshallPackage(aggregator4j, level1.item(i));
+                } else if (CLASS.equals(nodeName)) {
+                    unMarshallClass(aggregator4j, level1.item(i));
+                } else {
+                    LOGGER.warn("Unexpected tag :" + nodeName);
+                }
+            }
+        }
+        return aggregator4j;
+    }
+
+    private static boolean unMarshallClass(Aggregator4j aggregator4j, Node item) {
+        String className = getAttribute(item, NAME);
+        if (className != null) {
+            NodeList level1 = item.getChildNodes();
+            String  classContext = getAttribute(item, CONTEXT);
+            Class aClass = new Class(className,classContext);
+            for (int i = 0; i < level1.getLength(); i++) {
+                unMarshallClassConfig(aClass,level1.item(i));
+            }
+            return aggregator4j.addClass(aClass);
+        } else
+            LOGGER.warn(NAME + " attribute missing for " + CLASS);
+        return false;
+    }
+
+    private static boolean unMarshallClassConfig(Class aClass, Node item) {
+        if (item.getNodeType() == Node.ELEMENT_NODE) {
+            String field = getAttribute(item, FIELD);
+            String when = getAttribute(item, WHEN);
+            if (EXECUTE.equals(item.getNodeName())) {
+                String jexl = getAttribute(item, JEXL);
+                if (field != null && jexl != null)
+                    aClass.addExecute(new Execute(field,jexl,when));
+                //analysed.addExecute(field, jexl, when);
+                else
+                LOGGER.warn(EXECUTE + " requires " + FIELD + " '" + field + "' and " + JEXL + " '" + jexl + "' to be provided");
+            } else if (COLLECT.equals(item.getNodeName())) {
+                String to = getAttribute(item, TO);
+                String what = getAttribute(item, WHAT);
+                if ((field != null || what !=null ) && to != null)
+                    aClass.addCollect(new Collect(field,what,to,when));
+                else
+                LOGGER.warn(COLLECT + " requires " + TO + " '" + to + "' and either " + FIELD + " '" + field + "' or " + WHAT + " '" + what + "' to be provided");
+
+            } else if (VARIABLE.equals(item.getNodeName())) {
+                String name = getAttribute(item, NAME);
+                if (field != null && name != null)
+                    aClass.addVariable(new Variable(field,name));
+                //analysed.addVariable(field, name);
+                else
+                LOGGER.warn(VARIABLE + " requires " + FIELD + " '" + field + "' and " + NAME + " '" + name + "' to be provided");
+            }
+        }
+        return false;
+    }
+
+    private static void unMarshallPackage(Aggregator4j aggregator4j, Node item) {
+        String name = getAttribute(item, NAME);
+        if (name != null)
+            aggregator4j.setAnalysedPackage(name);
+        else
+        LOGGER.warn(NAME + " attribute missing for " + PACKAGE);
+    }
+
+    private static boolean unMarshallFunction(Aggregator4j aggregator4j, Node item) {
+        String namespace = getAttribute(item, NAMESPACE);
+        String registerClass = getAttribute(item, REGISTER_CLASS);
+        if (namespace != null && registerClass != null) {
+            return aggregator4j.addFunction(new Function(namespace, registerClass));
+        } else {
+            LOGGER.warn("Either " + REGISTER_CLASS + " '" + registerClass + "' or " + NAMESPACE + " '" + namespace + "' is missing");
+        }
+        return false;
     }
 
     public static void extractConfig(AggregatorContext context, OutputStream out) {
@@ -90,9 +186,9 @@ public class ConfigurationFactory {
                     analysed.classCollects.forEach(collect ->
                             classElement.appendChild(withAttribute(withAttribute(withAttribute(
                                     docConfig.createElement(COLLECT)
-                                    , WHAT, collect.what)
-                                    , TO, collect.to)
-                                    , WHEN, collect.when)
+                                    , WHAT, collect.getWhat())
+                                    , TO, collect.getTo())
+                                    , WHEN, collect.getWhen())
                             ));
                 if (analysed.collects != null)
                     analysed.collects.forEach((field, collects) ->
@@ -100,8 +196,8 @@ public class ConfigurationFactory {
                                     classElement.appendChild(withAttribute(withAttribute(withAttribute(
                                             docConfig.createElement(COLLECT)
                                             , FIELD, field)
-                                            , TO, collect.to)
-                                            , WHEN, collect.when)
+                                            , TO, collect.getTo())
+                                            , WHEN, collect.getWhen())
 
                                     )));
                 if (analysed.executes != null)
@@ -110,8 +206,8 @@ public class ConfigurationFactory {
                                     classElement.appendChild(withAttribute(withAttribute(withAttribute(
                                             docConfig.createElement(EXECUTE)
                                             , FIELD, field)
-                                            , JEXL, execute.jexl)
-                                            , WHEN, execute.when)
+                                            , JEXL, execute.getJexl())
+                                            , WHEN, execute.getWhen())
                                     )));
                 if (analysed.variables != null)
                     analysed.variables.forEach((field, variable) ->
@@ -133,7 +229,7 @@ public class ConfigurationFactory {
     }
 
     private static void prettyPrint(Document xml, OutputStream out) {
-        Transformer tf = null;
+        Transformer tf;
         try {
             tf = TransformerFactory.newInstance().newTransformer();
         } catch (TransformerConfigurationException e) {
@@ -148,109 +244,65 @@ public class ConfigurationFactory {
         }
     }
 
-    private static AggregatorContext analyse(Document docConfig) {
-        Element root = docConfig.getDocumentElement();
-        if (!AGGREGATOR4J.equals(root.getTagName()))
-            throw new Error("config root must be aggregator4j");
+    public static AggregatorContext buildAggregatorContext(Aggregator4j docConfig) {
         AggregatorContext context = new AggregatorContext(true);
-        NodeList level1 = root.getChildNodes();
-        for (int i = 0; i < level1.getLength(); i++) {
-            analyse(level1.item(i), context);
-        }
+        analysePackage(context,docConfig);
+        analyseFunction(context,docConfig);
+        analyseClass(context,docConfig);
         return context;
     }
 
-    private static void analyse(Node item, AggregatorContext context) {
-        if (item.getNodeType() == Node.ELEMENT_NODE) {
-            if (FUNCTION.equals(item.getNodeName())) {
-                analyseFunction(item, context);
-            } else if (PACKAGE.equals(item.getNodeName())) {
-                analysePackage(item, context);
-            } else if (CLASS.equals(item.getNodeName())) {
-                analyseClass(item, context);
-            } else {
-                LOGGER.warn("Unexpected tag :" + item.getNodeName());
-            }
-        }
-    }
-
-    private static void analyseFunction(Node item, AggregatorContext context) {
-        String namespace = getAttribute(item, NAMESPACE);
-        String registerClass = getAttribute(item, REGISTER_CLASS);
-        if (namespace != null && registerClass != null) {
-            Class clazz;
+    private static void analyseFunction(AggregatorContext context, Aggregator4j config) {
+        for(Function function:config.getFunctionList()){
+            java.lang.Class clazz;
             try {
-                clazz = Class.forName(registerClass);
+                clazz = java.lang.Class.forName(function.getRegisterClass());
             } catch (ClassNotFoundException e) {
                 throw new Error("Cannot register namespace function", e);
             }
-            context.register(namespace, clazz);
-        } else {
-            LOGGER.warn("Either " + REGISTER_CLASS + " '" + registerClass + "' or " + NAMESPACE + " '" + namespace + "' is missing");
+            context.register(function.getNamespace(), clazz);
+
         }
     }
 
-    private static void analysePackage(Node item, AggregatorContext context) {
-        String name = getAttribute(item, NAME);
-        if (name != null)
-            context.setPackageStart(name);
-        else
-            LOGGER.warn(NAME + " attribute missing for " + PACKAGE);
+    private static void analysePackage(AggregatorContext context, Aggregator4j config) {
+            context.setPackageStart(config.getAnalysedPackage());
     }
 
-    private static void analyseClass(Node item, AggregatorContext context) {
-        String className = getAttribute(item, NAME);
-        if (className != null) {
-            Class clazz;
+    private static void analyseClass(AggregatorContext context, Aggregator4j config) {
+        for(Class clazzConfig:config.getClassList()){
+            java.lang.Class clazz;
+
             try {
-                clazz = Class.forName(className);
+                clazz = java.lang.Class.forName(clazzConfig.getClassName());
             } catch (ClassNotFoundException e) {
                 throw new Error("Cannot analyse class", e);
             }
             Analysed analysed = new Analysed();
-            analysed.classContext = getAttribute(item, CONTEXT);
-            NodeList level1 = item.getChildNodes();
-            for (int i = 0; i < level1.getLength(); i++) {
-                analyseClassConfig(level1.item(i), analysed);
-            }
+            analysed.classContext = clazzConfig.getClassContext();
+            analyseClassConfig(clazzConfig,analysed);
             analysed.classType = Analysed.CLASS_TYPE.PROCESSABLE;
             analysed.addOtherFields(clazz);
             analysed.prune();
 
             context.cacheAndValidate(clazz, analysed);
-        } else
-            LOGGER.warn(NAME + " attribute missing for " + CLASS);
-    }
-
-    private static void analyseClassConfig(Node item, Analysed analysed) {
-        if (item.getNodeType() == Node.ELEMENT_NODE) {
-            String field = getAttribute(item, FIELD);
-            String when = getAttribute(item, WHEN);
-            if (EXECUTE.equals(item.getNodeName())) {
-                String jexl = getAttribute(item, JEXL);
-                if (field != null && jexl != null)
-                    analysed.addExecute(field, jexl, when);
-                else
-                    LOGGER.warn(EXECUTE + " requires " + FIELD + " '" + field + "' and " + JEXL + " '" + jexl + "' to be provided");
-            } else if (COLLECT.equals(item.getNodeName())) {
-                String to = getAttribute(item, TO);
-                String what = getAttribute(item, WHAT);
-                if (field != null && to != null)
-                    analysed.addCollectField(field, to, when);
-                else if (what != null && to != null)
-                    analysed.addCollectClass(what, to, when);
-                else
-                    LOGGER.warn(COLLECT + " requires " + TO + " '" + to + "' and either " + FIELD + " '" + field + "' or " + WHAT + " '" + what + "' to be provided");
-
-            } else if (VARIABLE.equals(item.getNodeName())) {
-                String name = getAttribute(item, NAME);
-                if (field != null && name != null)
-                    analysed.addVariable(field, name);
-                else
-                    LOGGER.warn(VARIABLE + " requires " + FIELD + " '" + field + "' and " + NAME + " '" + name + "' to be provided");
-            }
         }
     }
+
+    private static void analyseClassConfig(Class clazzConfig, Analysed analysed) {
+        clazzConfig.getExecuteList()
+                .forEach(e->analysed.addExecute(e.getField(),e.getJexl(),e.getWhen()));
+        clazzConfig.getCollectList()
+                .stream()
+                .filter(collect -> collect.getField()!=null)
+                .forEach(c->analysed.addCollectField(c.getField(),c.getTo(),c.getWhen()));
+        clazzConfig.getCollectList()
+                .stream()
+                .filter(collect -> collect.getWhat()!=null)
+                .forEach(c->analysed.addCollectClass(c.getWhat(),c.getTo(),c.getWhen()));
+        clazzConfig.getVariableList()
+                .forEach(variable -> analysed.addVariable(variable.getField(),variable.getVariable()));
+     }
 
 
     private static String getAttribute(Node item, String attributeName) {

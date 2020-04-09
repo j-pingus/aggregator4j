@@ -1,11 +1,15 @@
 package com.github.jpingus;
 
+import com.github.jpingus.model.Collect;
+import com.github.jpingus.model.Execute;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import java.lang.reflect.Field;
 import java.util.*;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 class Analysed {
+    private static final Log LOGGER = LogFactory.getLog(Analysed.class);
     CLASS_TYPE classType;
     String classContext;
     List<Collect> classCollects;
@@ -13,12 +17,11 @@ class Analysed {
     Map<String, List<Execute>> executes;
     Map<String, String> variables;
     List<String> otherFields;
-	private static final Log LOGGER = LogFactory.getLog(Analysed.class);
 
-    public Analysed(Class objectClass, String packageStart) {
+    Analysed(Class objectClass, String packageStart) {
         Context cx = (Context) objectClass.getDeclaredAnnotation(Context.class);
         classContext = cx == null ? null : cx.value();
-        classCollects = analyse((com.github.jpingus.Collect[]) objectClass.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class));
+        classCollects = analyse(null,(com.github.jpingus.Collect[]) objectClass.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class));
         if (classCollects != null && classCollects.size() == 0)
             classCollects = null;
         if (objectClass.isArray()) {
@@ -46,16 +49,16 @@ class Analysed {
                 if (variable != null) {
                     variables.put(f.getName(), variable.value());
                 }
-                com.github.jpingus.Execute executors[] = f.getDeclaredAnnotationsByType(com.github.jpingus.Execute.class);
-                com.github.jpingus.Collect collectors[] = f.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class);
+                com.github.jpingus.Execute[] executors = f.getDeclaredAnnotationsByType(com.github.jpingus.Execute.class);
+                com.github.jpingus.Collect[] collectors = f.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class);
                 String fieldName = sanitizeFieldName(f.getName());
-				if (executors != null && executors.length > 0 && collectors != null && collectors.length > 0) {
-					LOGGER.warn(collectors.length + " @Collect ignored for " + fieldName);
-				}
+                if (executors != null && executors.length > 0 && collectors != null && collectors.length > 0) {
+                    LOGGER.warn(collectors.length + " @Collect ignored for " + fieldName);
+                }
                 if (executors != null && executors.length > 0) {
-                    executes.put(fieldName, analyse(executors));
+                    executes.put(fieldName, analyse(fieldName, executors));
                 } else if (collectors != null && collectors.length > 0) {
-                    collects.put(fieldName, analyse(collectors));
+                    collects.put(fieldName, analyse(fieldName,collectors));
                 } else {
                     otherFields.add(fieldName);
                 }
@@ -72,7 +75,7 @@ class Analysed {
     }
 
 
-    static List<Field> getFields(Class baseClass) {
+    private static List<Field> getFields(Class baseClass) {
         ArrayList<Field> ret = new ArrayList<>();
         while (baseClass != null && baseClass != Object.class) {
             Collections.addAll(ret, baseClass.getDeclaredFields());
@@ -81,18 +84,18 @@ class Analysed {
         return ret;
     }
 
-    private List<Execute> analyse(com.github.jpingus.Execute[] executes) {
+    private List<Execute> analyse(String field, com.github.jpingus.Execute[] executes) {
         List<Execute> executeList = new ArrayList<>();
         for (com.github.jpingus.Execute execute : executes) {
-            executeList.add(new Execute(execute.value(), execute.when()));
+            executeList.add(new Execute(field, execute.value(), execute.when()));
         }
         return executeList;
     }
 
-    private List<Collect> analyse(com.github.jpingus.Collect[] collects) {
+    private List<Collect> analyse(String field,com.github.jpingus.Collect[] collects) {
         List<Collect> ret = new ArrayList<>();
         for (com.github.jpingus.Collect collect : collects) {
-            ret.add(new Collect(collect.value(), collect.what(), collect.when()));
+            ret.add(new Collect(field, collect.what(),collect.value(), collect.when()));
         }
         return ret;
     }
@@ -106,7 +109,7 @@ class Analysed {
     }
 
     void addExecute(String field, String jexl, String when) {
-        Execute ex = new Execute(jexl, when);
+        Execute ex = new Execute(field, jexl, when);
         field = sanitizeFieldName(field);
         if (!executes.containsKey(field)) {
             executes.put(field, new ArrayList<>());
@@ -144,25 +147,25 @@ class Analysed {
         return result;
     }
 
-    public void addCollectField(String field, String to, String when) {
-        Collect collect = new Collect(to, "this", when);
+    void addCollectField(String field, String to, String when) {
         field = sanitizeFieldName(field);
+        Collect collect = new Collect(field,null,to, when);
         if (!collects.containsKey(field)) {
             collects.put(field, new ArrayList<>());
         }
         collects.get(field).add(collect);
     }
 
-    public void addCollectClass(String what, String to, String when) {
-        classCollects.add(new Collect(to, what, when));
+    void addCollectClass(String what, String to, String when) {
+        classCollects.add(new Collect(null,what,to,  when));
     }
 
-    public void addVariable(String field, String variable) {
+    void addVariable(String field, String variable) {
         field = sanitizeFieldName(field);
         variables.put(field, variable);
     }
 
-    public void addOtherFields(Class clazz) {
+    void addOtherFields(Class clazz) {
         for (Field f : getFields(clazz)) {
             String fieldName = sanitizeFieldName(f.getName());
             if (!executes.containsKey(fieldName) && !collects.containsKey(fieldName))
@@ -170,72 +173,11 @@ class Analysed {
         }
     }
 
-    public void prune() {
+    void prune() {
         if (classCollects.isEmpty()) classCollects = null;
     }
 
     public enum CLASS_TYPE {ARRAY, LIST, MAP, ITERABLE, IGNORABLE, PROCESSABLE}
 
-    static class Execute {
-        String jexl;
-        String when;
 
-        public Execute(String jexl, String when) {
-            this.jexl = jexl;
-            this.when = "".equals(when) ? null : when;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            Execute execute = (Execute) o;
-
-            if (!jexl.equals(execute.jexl)) return false;
-            return when != null ? when.equals(execute.when) : execute.when == null;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = jexl.hashCode();
-            result = 31 * result + (when != null ? when.hashCode() : 0);
-            return result;
-        }
-
-    }
-
-    static class Collect {
-        String to;
-        String what;
-        String when;
-
-        public Collect(String to, String what, String when) {
-            this.to = to;
-            this.what = "this".equals(what) ? null : what;
-            this.when = "".equals(when) ? null : when;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            Collect collect = (Collect) o;
-
-            if (!to.equals(collect.to)) return false;
-            if (what != null ? !what.equals(collect.what) : collect.what != null) return false;
-            return when != null ? when.equals(collect.when) : collect.when == null;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = to.hashCode();
-            result = 31 * result + (what != null ? what.hashCode() : 0);
-            result = 31 * result + (when != null ? when.hashCode() : 0);
-            return result;
-        }
-
-
-    }
 }

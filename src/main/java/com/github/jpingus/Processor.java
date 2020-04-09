@@ -17,7 +17,8 @@ public class Processor {
         String formula;
         boolean executed = false;
 
-        public ExecuteContext(String parent, String field, String formula) {
+
+        ExecuteContext(String parent, String field, String formula) {
             this.field = parent + "." + field;
             this.formula = formula.replaceAll("this\\.", parent + ".");
         }
@@ -55,7 +56,7 @@ public class Processor {
             }
             process(prefix, o, aggregatorContext, executors);
             for (ExecuteContext executeContext : executors) {
-                if (executeContext.executed == false) {
+                if (!executeContext.executed) {
                     aggregatorContext.execute(executeContext.field, executeContext.formula);
                 }
             }
@@ -76,7 +77,7 @@ public class Processor {
             if (analysed.classContext != null) {
                 localContext.startContext(analysed.classContext);
                 for (ExecuteContext executeContext : executeContexts) {
-                    if (executeContext.formula.contains(analysed.classContext + ".") && executeContext.executed == false) {
+                    if (executeContext.formula.contains(analysed.classContext + ".") && !executeContext.executed) {
                         localContext.execute(executeContext.field, executeContext.formula);
                         executeContext.executed = true;
                     }
@@ -135,26 +136,26 @@ public class Processor {
             for (String field : analysed.collects.keySet()) {
                 if (!isNull(o, field, localContext)) {
                     String add = prefix + "." + field;
-                    for (Analysed.Collect collect : analysed.collects.get(field)) {
-                        if (applicable(o, collect.when, localContext)) {
-                            localContext.collect(evaluate(o, collect.to, localContext), add);
+                    for (com.github.jpingus.model.Collect collect : analysed.collects.get(field)) {
+                        if (applicable(o, collect.getWhen(), localContext)) {
+                            localContext.collect(evaluate(o, collect.getTo(), localContext), add);
                         }
                     }
                 }
             }
             //Execute the fields
             for (String field : analysed.executes.keySet()) {
-                for (Analysed.Execute execute : analysed.executes.get(field)) {
-                    if (applicable(o, execute.when, localContext)) {
-                        executeContexts.add(new ExecuteContext(prefix, field, execute.jexl));
+                for (com.github.jpingus.model.Execute execute : analysed.executes.get(field)) {
+                    if (applicable(o, execute.getWhen(), localContext)) {
+                        executeContexts.add(new ExecuteContext(prefix, field, execute.getJexl()));
                     }
                 }
             }
             if (analysed.classCollects != null) {
-                for (Analysed.Collect collect : analysed.classCollects) {
-                	String formula="(" + collect.what.replaceAll("this\\.", prefix + ".") + ") ";
-                    if (applicable(o, collect.when, localContext) && !isNull(formula,localContext)) {
-                        localContext.collect(evaluate(o, collect.to, localContext),
+                for (com.github.jpingus.model.Collect collect : analysed.classCollects) {
+                	String formula="(" + collect.getWhat().replaceAll("this\\.", prefix + ".") + ") ";
+                    if (applicable(o, collect.getWhen(), localContext) && !isNull(formula,localContext)) {
+                        localContext.collect(evaluate(o, collect.getTo(), localContext),
                                 formula);
                     }
                 }
@@ -200,7 +201,7 @@ public class Processor {
             return true;
         localContext.set("this", o);
         Object evaluated = localContext.evaluate(when);
-        Boolean ret = evaluated==null?Boolean.FALSE:new Boolean(evaluated.toString());
+        Boolean ret = evaluated==null?Boolean.FALSE: Boolean.valueOf(evaluated.toString());
         if (localContext.isDebug())
             LOGGER.debug("applicable :" + when + " is " + ret);
         return ret;

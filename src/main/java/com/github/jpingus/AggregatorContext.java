@@ -15,18 +15,18 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     private JexlContext localContext;
     private Map<String, Aggregator> aggregators;
     private StringBuilder processTrace;
-    private boolean debug = false;
+    private boolean debug;
     private int sizeMax = SIZE_MAX;
     private String packageStart;
 
     /**
      * Constructor :-)
      */
-    public AggregatorContext() {
+    AggregatorContext() {
         this(true);
     }
 
-    public AggregatorContext(boolean debug) {
+    AggregatorContext(boolean debug) {
         this.jexl = new JexlBuilder().create();
         this.localContext = new MapContext();
         this.aggregators = new HashMap<>();
@@ -381,14 +381,14 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         if (analysed.executes != null && analysed.collects != null) {
             for (String field : analysed.executes.keySet()) {
                 if (analysed.collects.containsKey(field)) {
-                    List<Analysed.Execute> executes = analysed.executes.get(field);
-                    List<Analysed.Collect> collects = analysed.collects.get(field);
+                    List<com.github.jpingus.model.Execute> executes = analysed.executes.get(field);
+                    List<com.github.jpingus.model.Collect> collects = analysed.collects.get(field);
                     if (!executes.isEmpty() && !collects.isEmpty()) {
-                        Optional<Analysed.Execute> execute = executes.stream().filter(e -> e.jexl.equals("null")).findFirst();
+                        Optional<com.github.jpingus.model.Execute> execute = executes.stream().filter(e -> e.getJexl().equals("null")).findFirst();
                         if (execute.isPresent()) {
-                            if (collects.stream().filter(c -> c.when == null).findFirst().isPresent()) {
+                            if (collects.stream().filter(c -> c.getWhen() == null).findFirst().isPresent()) {
                                 LOGGER.error("Collecting nullable field '" + objectClass.getName() + "." + field
-                                        + "' without when condition (suggestion add : when=\"not(" + execute.get().when
+                                        + "' without when condition (suggestion add : when=\"not(" + execute.get().getWhen()
                                         + ")\"");
                             } else {
                                 LOGGER.warn("Collecting nullable field '" + field + "' with when condition");
