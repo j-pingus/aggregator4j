@@ -11,12 +11,15 @@ public class Class {
     private List<Collect> collectList;
     private List<Variable> variableList;
 
-    public Class(String className, String classContext) {
-        this.className = className;
-        this.classContext = classContext;
+    public Class() {
         this.executeList = new ArrayList<>();
         this.collectList = new ArrayList<>();
         this.variableList = new ArrayList<>();
+    }
+    public Class(String className, String classContext) {
+        this();
+        this.className = className;
+        this.classContext = classContext;
     }
 
     @Override

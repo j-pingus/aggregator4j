@@ -5,7 +5,7 @@ import java.util.Objects;
 public class Variable {
     private String field;
     private String variable;
-
+    public Variable(){}
     public Variable(String field, String variable) {
         this.field = field;
         this.variable = variable;

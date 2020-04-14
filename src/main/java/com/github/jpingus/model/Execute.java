@@ -7,6 +7,9 @@ public class Execute {
     private String when;
     private String field;
 
+    public Execute() {
+
+    }
     public Execute(String field, String jexl, String when) {
         this.field = field;
         this.jexl = jexl;
