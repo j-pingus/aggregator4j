@@ -20,6 +20,15 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     private String packageStart;
 
     /**
+     * Change the default classloader for this context
+     * @param classLoader the classLoader to be used for analysis
+     */
+    public void setClassLoader(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
+
+    private ClassLoader classLoader = null;
+    /**
      * Constructor :-)
      */
     AggregatorContext() {
@@ -454,5 +463,17 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         }
     }
 
-
+    /**
+     * Load class potentially using a differentiated class loader
+     * @param name the class to load
+     * @return the loaded class
+     * @throws ClassNotFoundException
+     */
+    protected Class<?>  loadClass(String name) throws ClassNotFoundException {
+        if(classLoader==null){
+            return this.getClass().getClassLoader().loadClass(name);
+        }else{
+            return classLoader.loadClass(name);
+        }
+    }
 }

@@ -245,7 +245,12 @@ public class ConfigurationFactory {
     }
 
     public static AggregatorContext buildAggregatorContext(Aggregator4j docConfig) {
+        return buildAggregatorContext(docConfig,null);
+    }
+    public static AggregatorContext buildAggregatorContext(Aggregator4j docConfig, ClassLoader loader) {
         AggregatorContext context = new AggregatorContext(true);
+        if(loader!=null)
+            context.setClassLoader(loader);
         analysePackage(context,docConfig);
         analyseFunction(context,docConfig);
         analyseClass(context,docConfig);
@@ -256,9 +261,9 @@ public class ConfigurationFactory {
         for(Function function:config.getFunctionList()){
             java.lang.Class clazz;
             try {
-                clazz = java.lang.Class.forName(function.getRegisterClass());
+                clazz = context.loadClass(function.getRegisterClass());
             } catch (ClassNotFoundException e) {
-                throw new Error("Cannot register namespace function", e);
+                throw new Error("Cannot register namespace function"+function.getRegisterClass(), e);
             }
             context.register(function.getNamespace(), clazz);
 
@@ -274,9 +279,9 @@ public class ConfigurationFactory {
             java.lang.Class clazz;
 
             try {
-                clazz = java.lang.Class.forName(clazzConfig.getClassName());
+                clazz = context.loadClass(clazzConfig.getClassName());
             } catch (ClassNotFoundException e) {
-                throw new Error("Cannot analyse class", e);
+                throw new Error("Cannot analyse class:"+clazzConfig.getClassName(), e);
             }
             Analysed analysed = new Analysed();
             analysed.classContext = clazzConfig.getClassContext();
