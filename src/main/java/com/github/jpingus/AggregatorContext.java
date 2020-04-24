@@ -128,7 +128,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             this.set("$__context__", this);
             return jexl.createExpression(expression).evaluate(this);
         } catch (JexlException e) {
-            LOGGER.error("Could not evaluate expression '" + expression + "'", e);
+            error("Could not evaluate expression '" + expression + "'", e);
             return null;
         }
     }
@@ -373,6 +373,25 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return 0;
     }
 
+    private void error(String message) {
+        error(message, null);
+    }
+
+    private void error(String message, Throwable e) {
+        LOGGER.error(message);
+        if (debug) {
+            processTrace.traceError(message);
+            if (e != null)
+                processTrace.traceError(e.getMessage());
+        }
+    }
+
+    private void warning(String message) {
+        LOGGER.warn(message);
+        if (debug)
+            processTrace.traceWarning(message);
+    }
+
     public void cacheAndValidate(Class objectClass, Analysed analysed) {
         if (analysed.executes != null && analysed.collects != null) {
             for (String field : analysed.executes.keySet()) {
@@ -383,11 +402,11 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
                         Optional<com.github.jpingus.model.Execute> execute = executes.stream().filter(e -> e.getJexl().equals("null")).findFirst();
                         if (execute.isPresent()) {
                             if (collects.stream().anyMatch(c -> c.getWhen() == null)) {
-                                LOGGER.error("Collecting nullable field '" + objectClass.getName() + "." + field
+                                error("Collecting nullable field '" + objectClass.getName() + "." + field
                                         + "' without when condition (suggestion add : when=\"not(" + execute.get().getWhen()
                                         + ")\"");
                             } else {
-                                LOGGER.warn("Collecting nullable field '" + field + "' with when condition");
+                                warning("Collecting nullable field '" + field + "' with when condition");
                             }
                         } else {
                             LOGGER.info("Collecting field '" + field + "' and execute may change its value ");

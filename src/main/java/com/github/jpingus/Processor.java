@@ -72,7 +72,7 @@ public class Processor {
         ProcessTrace current = localContext.getProcessTrace();
         try {
             if (!isEmpty(analysed.classContext)) {
-                localContext.setProcessTrace(localContext.getProcessTrace().addContext(analysed.classContext));
+                localContext.setProcessTrace(localContext.getProcessTrace().traceContext(analysed.classContext));
                 for (ExecuteContext executeContext : executeContexts) {
                     if (executeContext.formula.contains(analysed.classContext + ".") && !executeContext.executed) {
                         localContext.execute(executeContext.field, executeContext.formula);

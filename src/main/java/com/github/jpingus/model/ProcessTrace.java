@@ -4,14 +4,36 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ProcessTrace {
-    public ProcessTrace addContext(String classContext) {
-        return add(new ContextTrace(classContext));
-    }
 
-    enum TraceType {ROOT, EXECUTE, COLLECT, VARIABLE, CONTEXT}
+    enum TraceType {ROOT, EXECUTE, COLLECT, VARIABLE, CONTEXT, ERROR, WARNING}
 
     TraceType type = TraceType.ROOT;
     public List<ProcessTrace> children;
+
+    public static class ErrorTrace extends ProcessTrace {
+        String message;
+
+        public ErrorTrace() {
+            this.type = TraceType.ERROR;
+        }
+
+        public ErrorTrace(String message) {
+            this();
+            this.message = message;
+        }
+    }
+    public static class WarningTrace extends ProcessTrace {
+        String message;
+
+        public WarningTrace() {
+            this.type = TraceType.WARNING;
+        }
+
+        public WarningTrace(String message) {
+            this();
+            this.message = message;
+        }
+    }
 
     public static class ContextTrace extends ProcessTrace {
         public ContextTrace(String name) {
@@ -72,6 +94,16 @@ public class ProcessTrace {
         }
     }
 
+    public ProcessTrace traceContext(String classContext) {
+        return add(new ContextTrace(classContext));
+    }
+
+    public ProcessTrace traceError(String message) {
+        return add(new ErrorTrace(message));
+    }
+    public ProcessTrace traceWarning(String message) {
+        return add(new WarningTrace(message));
+    }
     public ProcessTrace traceVariable(String name, Object value) {
         return add(new VariableTrace(name, value == null ? "null" : value.toString()));
     }
