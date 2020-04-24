@@ -6,9 +6,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.github.jpingus.model.ProcessTrace;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
+import static com.github.jpingus.StringFunctions.isEmpty;
 public class Processor {
     private static final Log LOGGER = LogFactory.getLog(Processor.class);
 
@@ -47,23 +48,18 @@ public class Processor {
      * @return updated aggregator context
      */
     public static AggregatorContext process(Object o, String prefix, AggregatorContext aggregatorContext) {
-        aggregatorContext.startProcess();
-        try {
-            List<ExecuteContext> executors = new ArrayList<>();
-            aggregatorContext.set(prefix, o);
-            if (aggregatorContext.getPackageStart() == null) {
-                aggregatorContext.setPackageStart(o.getClass().getPackage().getName());
-            }
-            process(prefix, o, aggregatorContext, executors);
-            for (ExecuteContext executeContext : executors) {
-                if (!executeContext.executed) {
-                    aggregatorContext.execute(executeContext.field, executeContext.formula);
-                }
-            }
-            return aggregatorContext;
-        } finally {
-            aggregatorContext.endProcess();
+        List<ExecuteContext> executors = new ArrayList<>();
+        aggregatorContext.set(prefix, o);
+        if (isEmpty(aggregatorContext.getPackageStart())) {
+            aggregatorContext.setPackageStart(o.getClass().getPackage().getName());
         }
+        process(prefix, o, aggregatorContext, executors);
+        for (ExecuteContext executeContext : executors) {
+            if (!executeContext.executed) {
+                aggregatorContext.execute(executeContext.field, executeContext.formula);
+            }
+        }
+        return aggregatorContext;
     }
 
     private static void process(String prefix, Object o, AggregatorContext localContext,
@@ -73,9 +69,10 @@ public class Processor {
         @SuppressWarnings("rawtypes")
         Class objectClass = o.getClass();
         Analysed analysed = localContext.getAnalysed(objectClass);
+        ProcessTrace current = localContext.getProcessTrace();
         try {
-            if (analysed.classContext != null) {
-                localContext.startContext(analysed.classContext);
+            if (!isEmpty(analysed.classContext)) {
+                localContext.setProcessTrace(localContext.getProcessTrace().addContext(analysed.classContext));
                 for (ExecuteContext executeContext : executeContexts) {
                     if (executeContext.formula.contains(analysed.classContext + ".") && !executeContext.executed) {
                         localContext.execute(executeContext.field, executeContext.formula);
@@ -153,26 +150,25 @@ public class Processor {
             }
             if (analysed.classCollects != null) {
                 for (com.github.jpingus.model.Collect collect : analysed.classCollects) {
-                	String formula="(" + collect.getWhat().replaceAll("this\\.", prefix + ".") + ") ";
-                    if (applicable(o, collect.getWhen(), localContext) && !isNull(formula,localContext)) {
+                    String formula = "(" + collect.getWhat().replaceAll("this\\.", prefix + ".") + ") ";
+                    if (applicable(o, collect.getWhen(), localContext) && !isNull(formula, localContext)) {
                         localContext.collect(evaluate(o, collect.getTo(), localContext),
                                 formula);
                     }
                 }
             }
         } finally {
-            if (analysed.classContext != null)
-                localContext.endContext(analysed.classContext);
+            localContext.setProcessTrace(current);
         }
     }
 
 
     private static boolean isNull(String formula, AggregatorContext localContext) {
-		return localContext.evaluate(formula)==null;
-	}
+        return localContext.evaluate(formula) == null;
+    }
 
     private static Object get(Object o, String fieldName, AggregatorContext localContext) {
-        if (fieldName == null || "".equals(fieldName) || fieldName.contains("$"))
+        if (isEmpty(fieldName) || fieldName.contains("$"))
             return null;
         localContext.set("this", o);
         if (localContext.isDebug())
@@ -182,14 +178,14 @@ public class Processor {
     }
 
     private static String evaluate(Object o, String value, AggregatorContext localContext) {
-        if (value == null || "".equals(value))
+        if (isEmpty(value))
             return null;
         if (!value.startsWith("eval:")) {
             return value;
         }
         localContext.set("this", o);
         Object evaluated = localContext.evaluate(value.substring(5));
-        return evaluated==null?"null":evaluated.toString();
+        return evaluated == null ? "null" : evaluated.toString();
     }
 
     private static boolean isNull(Object o, String fieldName, AggregatorContext localContext) {
@@ -197,17 +193,15 @@ public class Processor {
     }
 
     private static boolean applicable(Object o, String when, AggregatorContext localContext) {
-        if (when == null || "".equals(when))
+        if (isEmpty(when))
             return true;
         localContext.set("this", o);
         Object evaluated = localContext.evaluate(when);
-        Boolean ret = evaluated==null?Boolean.FALSE: Boolean.valueOf(evaluated.toString());
+        Boolean ret = evaluated == null ? Boolean.FALSE : Boolean.valueOf(evaluated.toString());
         if (localContext.isDebug())
             LOGGER.debug("applicable :" + when + " is " + ret);
         return ret;
     }
-
-
 
 
 }

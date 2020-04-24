@@ -1,5 +1,6 @@
 package com.github.jpingus;
 
+import com.github.jpingus.model.ProcessTrace;
 import org.apache.commons.jexl3.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -14,13 +15,23 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     private Map<String, Class> registeredNamespaces;
     private JexlContext localContext;
     private Map<String, Aggregator> aggregators;
-    private StringBuilder processTrace;
+
+    public ProcessTrace getProcessTrace() {
+        return processTrace;
+    }
+
+    public void setProcessTrace(ProcessTrace processTrace) {
+        this.processTrace = processTrace;
+    }
+
+    private ProcessTrace processTrace;
     private boolean debug;
     private int sizeMax = SIZE_MAX;
     private String packageStart;
 
     /**
      * Change the default classloader for this context
+     *
      * @param classLoader the classLoader to be used for analysis
      */
     public void setClassLoader(ClassLoader classLoader) {
@@ -28,6 +39,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     }
 
     private ClassLoader classLoader = null;
+
     /**
      * Constructor :-)
      */
@@ -40,7 +52,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         this.localContext = new MapContext();
         this.aggregators = new HashMap<>();
         this.registeredNamespaces = new HashMap<>();
-        this.processTrace = new StringBuilder();
+        this.processTrace = new ProcessTrace();
         this.debug = debug;
         this.packageStart = null;
     }
@@ -57,6 +69,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * Computes an identifier by concatenating prexif, "." and suffix
      * avoids null exception when computing ids
      * if null is passed the string "null" is concatenated in place of the object
+     *
      * @param prefix the prefix (can be null)
      * @param suffix the suffix (can be null)
      * @return concatenation like described
@@ -89,13 +102,17 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     }
 
     public Object execute(String field, String formula) {
-        StringBuilder expression = new StringBuilder(field).append("=").append(formula);
-        if (debug) {
-            processTrace.append("\"execute\":{\"field\":\"").append(field).append("\",\"formula\":\"").append(formula)
-                    .append("\"},");
-            LOGGER.debug("Execute:" + expression);
+        ProcessTrace current = processTrace;
+        try {
+            StringBuilder expression = new StringBuilder(field).append("=").append(formula);
+            if (debug) {
+                processTrace = processTrace.traceExecute(field, formula);
+                LOGGER.debug("Execute:" + expression);
+            }
+            return evaluate(expression.toString());
+        } finally {
+            processTrace = current;
         }
-        return evaluate(expression.toString());
     }
 
     /**
@@ -173,11 +190,11 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     /**
      * Concatenates all the strings if they are notnull
      *
-     * @param values
-     * @return
+     * @param values to concat
+     * @return concatenated values
      */
     public String concat(String... values) {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         for (String value : values) {
             if (value != null)
                 sb.append(value);
@@ -208,7 +225,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             sum(aggregator);
             return evaluate("$sum/" + count(aggregator) + ".0");
         }
-        return new Double(0.0d);
+        return 0.0d;
     }
 
     /**
@@ -280,9 +297,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             aggregators.put(aggregator, new Aggregator());
         aggregators.get(aggregator).append(objectReference);
         if (debug) {
-            LOGGER.debug("Adding to '" + aggregator + "' formula '" + objectReference + "'");
-            processTrace.append("\"collect\":{\"aggregator\":\"").append(aggregator).append("\",\"formula\":\"")
-                    .append(objectReference).append("\"},");
+            processTrace.traceCollect(aggregator, objectReference);
         }
     }
 
@@ -320,46 +335,18 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         }
     }
 
-    /**
-     * Trace context start
-     *
-     * @param contextName the context name to trace
-     */
-    public void startContext(String contextName) {
-        if (debug)
-            processTrace.append("\"context\":{\"name\":\"").append(contextName).append("\",");
-    }
-
-    /**
-     * stops trace of context
-     *
-     * @param value the context name to stop
-     */
-    public void endContext(String value) {
-        if (debug)
-            processTrace.append("},");
-    }
 
     public void addVariable(String variable, Object object) {
         // TODO Auto-generated method stub
         localContext.set("$" + variable, object);
         if (debug) {
             LOGGER.debug("got variable $" + variable);
-            processTrace.append("\"variable\":{\"name\":\"").append(variable).append("\",\"value\":\"")
-                    .append(object == null ? "null" : object.toString()).append("\"},");
+            processTrace.traceVariable(variable, object);
         }
     }
 
     public String getLastProcessTrace() {
         return processTrace.toString();
-    }
-
-    public void startProcess() {
-        processTrace = new StringBuilder("{");
-    }
-
-    public void endProcess() {
-        processTrace.append("}");
     }
 
     public boolean isDebug() {
@@ -395,7 +382,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
                     if (!executes.isEmpty() && !collects.isEmpty()) {
                         Optional<com.github.jpingus.model.Execute> execute = executes.stream().filter(e -> e.getJexl().equals("null")).findFirst();
                         if (execute.isPresent()) {
-                            if (collects.stream().filter(c -> c.getWhen() == null).findFirst().isPresent()) {
+                            if (collects.stream().anyMatch(c -> c.getWhen() == null)) {
                                 LOGGER.error("Collecting nullable field '" + objectClass.getName() + "." + field
                                         + "' without when condition (suggestion add : when=\"not(" + execute.get().getWhen()
                                         + ")\"");
@@ -465,14 +452,15 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
 
     /**
      * Load class potentially using a differentiated class loader
+     *
      * @param name the class to load
      * @return the loaded class
-     * @throws ClassNotFoundException
+     * @throws ClassNotFoundException when the class cannot be loaded
      */
-    protected Class<?>  loadClass(String name) throws ClassNotFoundException {
-        if(classLoader==null){
+    protected Class<?> loadClass(String name) throws ClassNotFoundException {
+        if (classLoader == null) {
             return this.getClass().getClassLoader().loadClass(name);
-        }else{
+        } else {
             return classLoader.loadClass(name);
         }
     }
