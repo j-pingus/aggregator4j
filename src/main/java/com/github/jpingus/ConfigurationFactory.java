@@ -52,10 +52,18 @@ public class ConfigurationFactory {
      * @return built context
      */
     public static AggregatorContext buildAggregatorContext(InputStream config) {
+        return buildAggregatorContext(unMarshall(config));
+    }
+
+    /**
+     * Unmarshall an XML configuration into Aggregator4j model
+     * @param config the XML input stream
+     * @return parsed object
+     */
+    public static Aggregator4j unMarshall(InputStream config) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder;
         Document docConfig;
-        Aggregator4j configModel;
         try {
             builder = factory.newDocumentBuilder();
 
@@ -63,12 +71,6 @@ public class ConfigurationFactory {
         } catch (Exception e) {
             throw new Error("Could not parse aggeregator4j config", e);
         }
-        configModel = unMarshall(docConfig);
-        return buildAggregatorContext(configModel);
-
-    }
-
-    private static Aggregator4j unMarshall(Document docConfig) {
         Aggregator4j aggregator4j = new Aggregator4j();
         Element root = docConfig.getDocumentElement();
         if (!AGGREGATOR4J.equals(root.getTagName()))

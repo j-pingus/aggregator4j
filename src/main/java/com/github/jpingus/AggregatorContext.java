@@ -159,7 +159,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             }
             return ret;
         } else {
-            LOGGER.warn("Could not find aggregator with name '" + aggregator + "'");
+            warning("Could not find aggregator with name '" + aggregator + "'");
         }
         return 0;
     }
@@ -201,7 +201,6 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         }
         return sb.toString();
     }
-
     /**
      * Sum all objects collected in an aggregator (may be problematic if JEXL cannot
      * sum those objects with "+" operand)
@@ -235,7 +234,20 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return an array (may be empty)
      */
     public Object[] asArray(String aggregator) {
-        return (Object[]) aggregate(aggregator, "asArray", false, a -> "[" + a.join(",") + "]", new Object[]{});
+        Object ret = aggregate(aggregator, "asArray", false, a -> "[" + a.join(",") + "]", new Object[]{});
+        if (ret instanceof int[]) {
+            Integer ret2[] = new Integer[((int[]) ret).length];
+            int idx = 0;
+            for (int i : ((int[]) ret)) ret2[idx] = ((int[]) ret)[idx++];
+            return ret2;
+        }
+        if (ret instanceof double[]) {
+            Double ret2[] = new Double[((double[]) ret).length];
+            int idx = 0;
+            for (double i : ((double[]) ret)) ret2[idx] = ((double[]) ret)[idx++];
+            return ret2;
+        }
+        return (Object[]) ret;
     }
 
     /**
@@ -280,7 +292,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
                 LOGGER.debug(name + " of " + aggregator + "=" + ret);
             return ret;
         } else {
-            LOGGER.warn("Could not find aggregator with name '" + aggregator + "'");
+            warning("Could not find aggregator with name '" + aggregator + "' use value:'" + orElse + "'");
         }
         return orElse;
 
@@ -382,8 +394,14 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         if (debug) {
             processTrace.traceError(message);
             if (e != null)
-                processTrace.traceError(e.getMessage());
+                processTrace.traceError(getRootCause(e));
         }
+    }
+
+    private String getRootCause(Throwable e) {
+        if (e.getCause() != null)
+            return getRootCause(e.getCause());
+        return e.getLocalizedMessage();
     }
 
     private void warning(String message) {

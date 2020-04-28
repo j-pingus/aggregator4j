@@ -1,0 +1,265 @@
+{
+  "type": "ROOT",
+  "children": [
+    {
+      "type": "VARIABLE",
+      "variable": "ccm2",
+      "value": "a"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "All my ccm2 ids",
+      "reference": "b.elements[0].ccm2"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total",
+      "reference": "b.elements[0].value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total a",
+      "reference": "b.elements[0].value"
+    },
+    {
+      "type": "VARIABLE",
+      "variable": "ccm2",
+      "value": "b"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "All my ccm2 ids",
+      "reference": "b.elements[2].ccm2"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total",
+      "reference": "b.elements[2].value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total b",
+      "reference": "b.elements[2].value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total2",
+      "reference": "b.elements2[0].value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total c",
+      "reference": "b.elements2[0].value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Big decimal",
+      "reference": "b.elements2[0].otherValue"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total2",
+      "reference": "b.elements2[2].value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total c",
+      "reference": "b.elements2[2].value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Big decimal",
+      "reference": "b.elements2[2].otherValue"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total2",
+      "reference": "b.elements3[0].value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total c",
+      "reference": "b.elements3[0].value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Big decimal",
+      "reference": "b.elements3[0].otherValue"
+    },
+    {
+      "type": "VARIABLE",
+      "variable": "ccm2",
+      "value": "c"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "All my ccm2 ids",
+      "reference": "b_elements4_0.ccm2"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total",
+      "reference": "b_elements4_0.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total c",
+      "reference": "b_elements4_0.value"
+    },
+    {
+      "type": "VARIABLE",
+      "variable": "ccm2",
+      "value": "null"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total",
+      "reference": "b_elements4_1.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total2",
+      "reference": "b_elements4_2.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total c",
+      "reference": "b_elements4_2.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Big decimal",
+      "reference": "b_elements4_2.otherValue"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total2",
+      "reference": "b_elements5_0.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total c",
+      "reference": "b_elements5_0.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Big decimal",
+      "reference": "b_elements5_0.otherValue"
+    },
+    {
+      "type": "VARIABLE",
+      "variable": "ccm2",
+      "value": "a"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "All my ccm2 ids",
+      "reference": "b_elements5_1.ccm2"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total",
+      "reference": "b_elements5_1.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total a",
+      "reference": "b_elements5_1.value"
+    },
+    {
+      "type": "VARIABLE",
+      "variable": "ccm2",
+      "value": "a"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "All my ccm2 ids",
+      "reference": "b_elements5_2.ccm2"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total",
+      "reference": "b_elements5_2.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total a",
+      "reference": "b_elements5_2.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "total2",
+      "reference": "b_elements5_3.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Grand total c",
+      "reference": "b_elements5_3.value"
+    },
+    {
+      "type": "COLLECT",
+      "aggregator": "Big decimal",
+      "reference": "b_elements5_3.otherValue"
+    },
+    {
+      "type": "EXECUTE",
+      "field": "b_myGrandTotals_0.sum",
+      "formula": "sum('Grand total '+b_myGrandTotals_0.ccm2)"
+    },
+    {
+      "type": "EXECUTE",
+      "field": "b_myGrandTotals_1.sum",
+      "formula": "sum('Grand total '+b_myGrandTotals_1.ccm2)"
+    },
+    {
+      "type": "EXECUTE",
+      "field": "b_myGrandTotals_2.sum",
+      "formula": "sum('Grand total '+b_myGrandTotals_2.ccm2)"
+    },
+    {
+      "type": "EXECUTE",
+      "field": "b.total",
+      "formula": "sum('total')"
+    },
+    {
+      "type": "EXECUTE",
+      "children": [
+        {
+          "type": "ERROR",
+          "message": "Could not evaluate expression 'b.rate=my:rate(sum('total2'))'"
+        },
+        {
+          "type": "ERROR",
+          "message": "com.github.jpingus.AggregatorContext.evaluate@1:15 unsolvable function/method 'rate'"
+        }
+      ],
+      "field": "b.rate",
+      "formula": "my:rate(sum('total2'))"
+    },
+    {
+      "type": "EXECUTE",
+      "field": "b.doubleCount",
+      "formula": "count('total2')*2"
+    },
+    {
+      "type": "EXECUTE",
+      "field": "b.total2",
+      "formula": "sum('total2')"
+    },
+    {
+      "type": "EXECUTE",
+      "field": "b.ccm2",
+      "formula": "'['+join(',','All my ccm2 ids')+']'"
+    },
+    {
+      "type": "EXECUTE",
+      "field": "b.totalBig",
+      "formula": "avg('Big decimal')"
+    },
+    {
+      "type": "EXECUTE",
+      "field": "b.avg2",
+      "formula": "avg('total2')"
+    }
+  ]
+}

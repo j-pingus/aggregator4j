@@ -7,6 +7,16 @@ public class ProcessTrace {
 
     enum TraceType {ROOT, EXECUTE, COLLECT, VARIABLE, CONTEXT, ERROR, WARNING}
 
+    @Override
+    public String toString() {
+        return "{"+fieldsToString()+"}";
+    }
+
+    public String fieldsToString() {
+        return "\"type\":\"" + type + '\"' +
+                (children != null ? (", \"children\":" + children) : "");
+    }
+
     TraceType type = TraceType.ROOT;
     public List<ProcessTrace> children;
 
@@ -21,9 +31,26 @@ public class ProcessTrace {
             this();
             this.message = message;
         }
+
+        @Override
+        public String toString() {
+            return "{" +
+                    fieldsToString() +
+                    ", \"message\":\"" + message + '\"' +
+                    '}';
+        }
     }
+
     public static class WarningTrace extends ProcessTrace {
         String message;
+
+        @Override
+        public String toString() {
+            return "{" +
+                    fieldsToString() +
+                    ", \"message\":\"" + message + '\"' +
+                    '}';
+        }
 
         public WarningTrace() {
             this.type = TraceType.WARNING;
@@ -41,6 +68,14 @@ public class ProcessTrace {
             this.name = name;
         }
 
+        @Override
+        public String toString() {
+            return "{" +
+                    fieldsToString() +
+                    ", \"name\":\"" + name + '\"' +
+                    '}';
+        }
+
         public ContextTrace() {
             this.type = TraceType.CONTEXT;
         }
@@ -50,6 +85,16 @@ public class ProcessTrace {
 
     public static class CollectTrace extends ProcessTrace {
         String aggregator;
+
+        @Override
+        public String toString() {
+            return "{" +
+                    fieldsToString() +
+                    ", \"aggregator\":\"" + aggregator + '\"' +
+                    ", \"reference\":\"" + reference + '\"' +
+                    '}';
+        }
+
         String reference;
 
         public CollectTrace() {
@@ -71,6 +116,15 @@ public class ProcessTrace {
             this.type = TraceType.VARIABLE;
         }
 
+        @Override
+        public String toString() {
+            return "{" +
+                    fieldsToString() +
+                    ", \"variable\":\"" + variable + '\"' +
+                    ", \"value\":\"" + value + '\"' +
+                    '}';
+        }
+
         public VariableTrace(String variable, String value) {
             this();
             this.variable = variable;
@@ -81,6 +135,16 @@ public class ProcessTrace {
 
     public static class ExecuteTrace extends ProcessTrace {
         String field;
+
+        @Override
+        public String toString() {
+            return "{" +
+                    fieldsToString() +
+                    ", \"field\":\"" + field + '\"' +
+                    ", \"formula\":\"" + formula + '\"' +
+                    '}';
+        }
+
         String formula;
 
         public ExecuteTrace() {
@@ -101,9 +165,11 @@ public class ProcessTrace {
     public ProcessTrace traceError(String message) {
         return add(new ErrorTrace(message));
     }
+
     public ProcessTrace traceWarning(String message) {
         return add(new WarningTrace(message));
     }
+
     public ProcessTrace traceVariable(String name, Object value) {
         return add(new VariableTrace(name, value == null ? "null" : value.toString()));
     }
