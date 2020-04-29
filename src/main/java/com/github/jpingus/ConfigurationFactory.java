@@ -1,11 +1,10 @@
 package com.github.jpingus;
 
-import com.github.jpingus.model.Aggregator4j;
 import com.github.jpingus.model.Class;
 import com.github.jpingus.model.Collect;
 import com.github.jpingus.model.Execute;
-import com.github.jpingus.model.Function;
 import com.github.jpingus.model.Variable;
+import com.github.jpingus.model.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.w3c.dom.Document;
@@ -30,6 +29,7 @@ public class ConfigurationFactory {
     private static final String EXECUTE = "execute";
     private static final String JEXL = "jexl";
     private static final String COLLECT = "collect";
+    private static final String PROCESSING = "processing";
     private static final String TO = "to";
     private static final String WHAT = "what";
     private static final String VARIABLE = "variable";
@@ -57,6 +57,7 @@ public class ConfigurationFactory {
 
     /**
      * Unmarshall an XML configuration into Aggregator4j model
+     *
      * @param config the XML input stream
      * @return parsed object
      */
@@ -75,6 +76,9 @@ public class ConfigurationFactory {
         Element root = docConfig.getDocumentElement();
         if (!AGGREGATOR4J.equals(root.getTagName()))
             throw new Error("config root must be aggregator4j");
+        if (root.hasAttribute(PROCESSING)) {
+            aggregator4j.setProcessing(root.getAttribute(PROCESSING));
+        }
         NodeList level1 = root.getChildNodes();
         for (int i = 0; i < level1.getLength(); i++) {
             if (level1.item(i).getNodeType() == Node.ELEMENT_NODE) {
@@ -114,7 +118,7 @@ public class ConfigurationFactory {
             String when = getAttribute(item, WHEN);
             if (EXECUTE.equals(item.getNodeName())) {
                 String jexl = getAttribute(item, JEXL);
-                if (!isEmpty(field,jexl) )
+                if (!isEmpty(field, jexl))
                     aClass.addExecute(new Execute(field, jexl, when));
                     //analysed.addExecute(field, jexl, when);
                 else
@@ -174,6 +178,8 @@ public class ConfigurationFactory {
                 docConfig.createElement(PACKAGE)
                 , NAME, context.getPackageStart())
         );
+        if (context.getProcessing() != null)
+            withAttribute(root, PROCESSING, context.getProcessing().getClass().getName());
         context.getRegisteredNamespaces().forEach((namespace, clazz) ->
                 root.appendChild(withAttribute(withAttribute(
                         docConfig.createElement(FUNCTION)
@@ -256,10 +262,26 @@ public class ConfigurationFactory {
         AggregatorContext context = new AggregatorContext(true);
         if (loader != null)
             context.setClassLoader(loader);
+        analyseProcessing(context, docConfig.getProcessing());
         analysePackage(context, docConfig);
         analyseFunction(context, docConfig);
         analyseClass(context, docConfig);
         return context;
+    }
+
+    private static void analyseProcessing(AggregatorContext context, String processing) {
+        java.lang.Class clazz;
+        try {
+            clazz = context.loadClass(processing);
+            Object o = clazz.newInstance();
+            if (o instanceof AggregatorProcessing) {
+                context.setProcessing((AggregatorProcessing) o);
+            } else {
+                context.error(processing + " do not implement " + AggregatorProcessing.class.getName());
+            }
+        } catch (Throwable e) {
+            context.error("Cannot register processing class " + processing, e);
+        }
     }
 
     private static void analyseFunction(AggregatorContext context, Aggregator4j config) {
@@ -267,10 +289,10 @@ public class ConfigurationFactory {
             java.lang.Class clazz;
             try {
                 clazz = context.loadClass(function.getRegisterClass());
+                context.register(function.getNamespace(), clazz);
             } catch (ClassNotFoundException e) {
-                throw new Error("Cannot register namespace function" + function.getRegisterClass(), e);
+                context.error("Cannot register namespace function" + function.getRegisterClass(), e);
             }
-            context.register(function.getNamespace(), clazz);
 
         }
     }

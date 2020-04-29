@@ -4,7 +4,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -84,11 +83,12 @@ public class TestMap {
     }
 
     public class Container {
-        public Detail details[];
+        public Detail[] details;
         @Execute("test:getTotals(asSet('types'),$__context__)")
         public List<TypedTotal> totals;
         @Execute("sum('total')")
         public double total;
+
         @Override
         public String toString() {
             return "Container{" +

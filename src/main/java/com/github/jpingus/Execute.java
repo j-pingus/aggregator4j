@@ -1,4 +1,5 @@
 package com.github.jpingus;
+
 import java.lang.annotation.*;
 
 @Retention(
@@ -8,5 +9,6 @@ import java.lang.annotation.*;
 @Repeatable(Executes.class)
 public @interface Execute {
     String value();
-    String when() default "" ;
+
+    String when() default "";
 }

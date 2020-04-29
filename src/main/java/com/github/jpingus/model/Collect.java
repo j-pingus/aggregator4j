@@ -8,8 +8,9 @@ public class Collect {
     private String to;
     private String when;
 
-    public Collect(){
+    public Collect() {
     }
+
     public Collect(String field, String what, String to, String when) {
         this.field = field;
         this.to = to;

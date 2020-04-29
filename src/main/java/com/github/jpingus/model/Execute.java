@@ -10,6 +10,7 @@ public class Execute {
     public Execute() {
 
     }
+
     public Execute(String field, String jexl, String when) {
         this.field = field;
         this.jexl = jexl;

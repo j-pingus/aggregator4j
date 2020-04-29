@@ -11,10 +11,39 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     private static final int SIZE_MAX = 2000;
     private static final Log LOGGER = LogFactory.getLog(AggregatorContext.class);
     private final Map<Class, Analysed> analysedCache = new HashMap<>();
-    private JexlEngine jexl;
-    private Map<String, Class> registeredNamespaces;
-    private JexlContext localContext;
-    private Map<String, Aggregator> aggregators;
+    private final JexlEngine jexl;
+    private final Map<String, Class> registeredNamespaces;
+    private final JexlContext localContext;
+    private final Map<String, Aggregator> aggregators;
+    private AggregatorProcessing processing;
+    private ProcessTrace processTrace;
+    private final boolean debug;
+    private final int sizeMax = SIZE_MAX;
+    private String packageStart;
+    private ClassLoader classLoader = null;
+    /**
+     * Constructor :-)
+     */
+    AggregatorContext() {
+        this(true);
+    }
+    AggregatorContext(boolean debug) {
+        this.jexl = new JexlBuilder().create();
+        this.localContext = new MapContext();
+        this.aggregators = new HashMap<>();
+        this.registeredNamespaces = new HashMap<>();
+        this.processTrace = new ProcessTrace();
+        this.debug = debug;
+        this.packageStart = null;
+    }
+
+    public AggregatorProcessing getProcessing() {
+        return processing;
+    }
+
+    public void setProcessing(AggregatorProcessing processing) {
+        this.processing = processing;
+    }
 
     public ProcessTrace getProcessTrace() {
         return processTrace;
@@ -24,11 +53,6 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         this.processTrace = processTrace;
     }
 
-    private ProcessTrace processTrace;
-    private boolean debug;
-    private int sizeMax = SIZE_MAX;
-    private String packageStart;
-
     /**
      * Change the default classloader for this context
      *
@@ -36,25 +60,6 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      */
     public void setClassLoader(ClassLoader classLoader) {
         this.classLoader = classLoader;
-    }
-
-    private ClassLoader classLoader = null;
-
-    /**
-     * Constructor :-)
-     */
-    AggregatorContext() {
-        this(true);
-    }
-
-    AggregatorContext(boolean debug) {
-        this.jexl = new JexlBuilder().create();
-        this.localContext = new MapContext();
-        this.aggregators = new HashMap<>();
-        this.registeredNamespaces = new HashMap<>();
-        this.processTrace = new ProcessTrace();
-        this.debug = debug;
-        this.packageStart = null;
     }
 
     Map<String, Class> getRegisteredNamespaces() {
@@ -183,24 +188,10 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @param orElse     the default value to return in case not found or no elements in aggregator
      * @return the total of all elements in element's type if not found or no elements
      */
-    public Object sum(String aggregator, Object orElse) {
-        return aggregate(aggregator, "sum", true, a -> a.join("+"), orElse);
+    public <T> T sum(String aggregator, T orElse) {
+        return (T) aggregate(aggregator, "sum", true, a -> a.join("+"), orElse);
     }
 
-    /**
-     * Concatenates all the strings if they are notnull
-     *
-     * @param values to concat
-     * @return concatenated values
-     */
-    public String concat(String... values) {
-        StringBuilder sb = new StringBuilder();
-        for (String value : values) {
-            if (value != null)
-                sb.append(value);
-        }
-        return sb.toString();
-    }
     /**
      * Sum all objects collected in an aggregator (may be problematic if JEXL cannot
      * sum those objects with "+" operand)
@@ -233,21 +224,21 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @param aggregator the aggregator
      * @return an array (may be empty)
      */
-    public Object[] asArray(String aggregator) {
+    public <T> T[] asArray(String aggregator) {
         Object ret = aggregate(aggregator, "asArray", false, a -> "[" + a.join(",") + "]", new Object[]{});
         if (ret instanceof int[]) {
-            Integer ret2[] = new Integer[((int[]) ret).length];
+            Integer[] ret2 = new Integer[((int[]) ret).length];
             int idx = 0;
             for (int i : ((int[]) ret)) ret2[idx] = ((int[]) ret)[idx++];
-            return ret2;
+            return (T[])ret2;
         }
         if (ret instanceof double[]) {
-            Double ret2[] = new Double[((double[]) ret).length];
+            Double[] ret2 = new Double[((double[]) ret).length];
             int idx = 0;
             for (double i : ((double[]) ret)) ret2[idx] = ((double[]) ret)[idx++];
-            return ret2;
+            return (T[])ret2;
         }
-        return (Object[]) ret;
+        return (T[]) ret;
     }
 
     /**
@@ -256,9 +247,9 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @param aggregator the aggregator
      * @return the distinct set of elements (may be empty)
      */
-    public Set<Object> asSet(String aggregator) {
+    public <T> Set<T> asSet(String aggregator) {
         @SuppressWarnings("unchecked")
-        Set<Object> ret = (Set<Object>) aggregate(aggregator, "asSet", false, a -> "{" + a.join(",") + "}", new HashSet<>());
+        Set<T> ret = (Set<T>) aggregate(aggregator, "asSet", false, a -> "{" + a.join(",") + "}", new HashSet<>());
         return ret;
     }
 
@@ -385,11 +376,11 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return 0;
     }
 
-    private void error(String message) {
+    void error(String message) {
         error(message, null);
     }
 
-    private void error(String message, Throwable e) {
+    void error(String message, Throwable e) {
         LOGGER.error(message);
         if (debug) {
             processTrace.traceError(message);
@@ -444,6 +435,29 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return analysedCache.get(objectClass);
     }
 
+    /**
+     * Load class potentially using a differentiated class loader
+     *
+     * @param name the class to load
+     * @return the loaded class
+     * @throws ClassNotFoundException when the class cannot be loaded
+     */
+    protected Class<?> loadClass(String name) throws ClassNotFoundException {
+        if (classLoader == null) {
+            return this.getClass().getClassLoader().loadClass(name);
+        } else {
+            return classLoader.loadClass(name);
+        }
+    }
+
+    void preProcess(Object o) {
+        if(processing!=null)
+            processing.preProcess(o,this);
+    }
+    void postProcess(Object o){
+        if(processing!=null)
+            processing.postProcess(o,this);
+    }
     public interface AggregatorJEXLBuilder {
         String buildExpression(Aggregator a);
     }
@@ -484,21 +498,6 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         public void clear() {
             formulas.clear();
 
-        }
-    }
-
-    /**
-     * Load class potentially using a differentiated class loader
-     *
-     * @param name the class to load
-     * @return the loaded class
-     * @throws ClassNotFoundException when the class cannot be loaded
-     */
-    protected Class<?> loadClass(String name) throws ClassNotFoundException {
-        if (classLoader == null) {
-            return this.getClass().getClassLoader().loadClass(name);
-        } else {
-            return classLoader.loadClass(name);
         }
     }
 }

@@ -8,6 +8,8 @@ import org.junit.Test;
 
 import java.util.*;
 
+import static org.hamcrest.CoreMatchers.hasItems;
+
 public class ProcessorTest {
     private static final Log LOG = LogFactory.getLog(ProcessorTest.class);
     Business b;
@@ -16,15 +18,11 @@ public class ProcessorTest {
     @Before
     public void initBusiness() {
         b = new Business();
-        b.myGrandTotals = new HashMap<>();
-        b.myGrandTotals.put("a", new GrandTotal(0, "a"));
-        b.myGrandTotals.put("b", new GrandTotal(0, "b"));
-        b.myGrandTotals.put("c", new GrandTotal(0, "c"));
         b.elements = new Row[]{new Row(10, "a"), null, new Row(20, "b")};
         b.elements2 = new Row2[]{new Row2(8), new Row2(null), new Row2(5)};
-        b.elements3 = new ArrayList<Row2>();
+        b.elements3 = new ArrayList<>();
         b.elements3.add(new Row2(5));
-        b.elements4 = new HashSet<Rows>();
+        b.elements4 = new HashSet<>();
         b.elements4.add(new Row(7, "c"));
         b.elements4.add(new Row(124, null));
         b.elements4.add(new Row2(2));
@@ -41,10 +39,29 @@ public class ProcessorTest {
         //Adding custom functions to the context
         myAggregatorContext.register("my", Functions.class);
         myAggregatorContext.setPackageStart("com.github.jpingus");
+        myAggregatorContext.setProcessing(
+                new AggregatorProcessing() {
+                    @Override
+                    public void preProcess(Object o, AggregatorContext context) {
+                    }
+
+                    @Override
+                    public void postProcess(Object o, AggregatorContext context) {
+                        if (o instanceof Business) {
+                            Business b = (Business) o;
+                            b.myGrandTotals = new HashMap<>();
+                            Set<String> ids = context.asSet("All my ccm2 ids");
+                            for (String ccm2 : ids) {
+                                b.myGrandTotals.put(ccm2, context.process(new GrandTotal(0, ccm2)));
+                            }
+                        }
+                    }
+                }
+        );
     }
 
     @Test
-    public void test() throws Exception {
+    public void test() {
         Processor.process(b, "b", myAggregatorContext);
         Assert.assertEquals(new Integer(162), b.total);
         Assert.assertEquals(new Integer(26), b.total2);
@@ -54,14 +71,21 @@ public class ProcessorTest {
         Assert.assertEquals(new Integer(12), b.doubleCount);
         Assert.assertEquals(4.3333, b.avg2, 0.0001);
         Assert.assertEquals(22.822, b.rate, 0.0001);
-        Assert.assertEquals("[a,b,c,a,a]", b.ccm2);
+        Assert.assertEquals("[c,a,a,a,b]", b.ccm2);
         Assert.assertEquals(true, myAggregatorContext.contains("All my ccm2 ids", "a"));
-        Assert.assertEquals(new Double(4.42), b.totalBig.doubleValue(), 0.001);
+        Assert.assertEquals(4.42, b.totalBig.doubleValue(), 0.001);
+        Assert.assertEquals(new Integer(15), myAggregatorContext.sum("Unknown aggregator", 15));
+        //Just verify the auto boxing for primitive does not break
+        Integer[] o1 = myAggregatorContext.asArray("test array int");
+        Assert.assertThat(Arrays.asList(o1), hasItems(8, 0, 5, 5, 2, 3, 3));
+        Double[] o2 = myAggregatorContext.asArray("test array double");
+        Assert.assertEquals(7, o2.length);
+        myAggregatorContext.asArray("Grand total c");
         ConfigurationFactory.extractConfig(myAggregatorContext, System.out);
     }
 
     @Test
-    public void testError() throws Exception {
+    public void testError() {
         AggregatorContext context = Processor.process(b, "b", new AggregatorContext(true));
         LOG.info("trace of execution:" + context.getLastProcessTrace());
         context.evaluate("error");
@@ -69,15 +93,15 @@ public class ProcessorTest {
     }
 
     @Test
-    public void testApi() throws Exception {
+    public void testApi() {
         Processor.process(b.elements5, "be5", myAggregatorContext);
         //Try combining custom functions together outside of the "box" with no "executor"
         Object result = myAggregatorContext.evaluate("my:divide(sum('total'),sum('total2'))");
         Assert.assertEquals(Double.class, result.getClass());
-        Assert.assertEquals(new Double(0.166), (Double) result, 0.001);
+        Assert.assertEquals(0.166, (Double) result, 0.001);
         Assert.assertEquals(new Integer(2), myAggregatorContext.count("total2"));
         Assert.assertNull(myAggregatorContext.sum("TOTO"));
-        Object ccm2Array[] = myAggregatorContext.asArray("All my ccm2 ids");
+        Object[] ccm2Array = myAggregatorContext.asArray("All my ccm2 ids");
         Set<Object> ccm2Set = myAggregatorContext.asSet("All my ccm2 ids");
         LOG.debug(Arrays.toString(ccm2Array));
         LOG.debug(ccm2Set);
@@ -90,9 +114,7 @@ public class ProcessorTest {
         Assert.assertNotNull(aggregators);
         Assert.assertEquals(6, aggregators.size());
         Set<String> expectedAggregators = new HashSet<>();
-        for (String eA : new String[]{"Big decimal", "total", "Grand total c", "All my ccm2 ids", "Grand total a", "total2"}) {
-            expectedAggregators.add(eA);
-        }
+        Collections.addAll(expectedAggregators, "Big decimal", "total", "Grand total c", "All my ccm2 ids", "Grand total a", "total2");
         Assert.assertEquals(expectedAggregators, aggregators);
     }
 

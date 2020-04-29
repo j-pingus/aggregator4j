@@ -1,29 +1,19 @@
 package com.github.jpingus;
 
+import com.github.jpingus.model.ProcessTrace;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import com.github.jpingus.model.ProcessTrace;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import static com.github.jpingus.StringFunctions.isEmpty;
+
 public class Processor {
     private static final Log LOGGER = LogFactory.getLog(Processor.class);
-
-    static class ExecuteContext {
-        String field;
-        String formula;
-        boolean executed = false;
-
-
-        ExecuteContext(String parent, String field, String formula) {
-            this.field = parent + "." + field;
-            this.formula = formula.replaceAll("this\\.", parent + ".");
-        }
-    }
 
     /**
      * Analyse recursively an object, collecting all the @Collects to aggregators,
@@ -53,12 +43,14 @@ public class Processor {
         if (isEmpty(aggregatorContext.getPackageStart())) {
             aggregatorContext.setPackageStart(o.getClass().getPackage().getName());
         }
+        aggregatorContext.preProcess(o);
         process(prefix, o, aggregatorContext, executors);
         for (ExecuteContext executeContext : executors) {
             if (!executeContext.executed) {
                 aggregatorContext.execute(executeContext.field, executeContext.formula);
             }
         }
+        aggregatorContext.postProcess(o);
         return aggregatorContext;
     }
 
@@ -162,7 +154,6 @@ public class Processor {
         }
     }
 
-
     private static boolean isNull(String formula, AggregatorContext localContext) {
         return localContext.evaluate(formula) == null;
     }
@@ -201,6 +192,18 @@ public class Processor {
         if (localContext.isDebug())
             LOGGER.debug("applicable :" + when + " is " + ret);
         return ret;
+    }
+
+    static class ExecuteContext {
+        String field;
+        String formula;
+        boolean executed = false;
+
+
+        ExecuteContext(String parent, String field, String formula) {
+            this.field = parent + "." + field;
+            this.formula = formula.replaceAll("this\\.", parent + ".");
+        }
     }
 
 

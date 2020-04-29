@@ -5,13 +5,22 @@ import java.util.List;
 import java.util.Objects;
 
 public class Aggregator4j {
+    private String analysedPackage;
+    private String processing;
     private List<Function> functionList;
     private List<Class> classList;
-    private String analysedPackage;
 
     public Aggregator4j() {
         this.functionList = new ArrayList<>();
         this.classList = new ArrayList<>();
+    }
+
+    public String getProcessing() {
+        return processing;
+    }
+
+    public void setProcessing(String processing) {
+        this.processing = processing;
     }
 
     public boolean addFunction(Function function) {

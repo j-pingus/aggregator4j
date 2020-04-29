@@ -16,6 +16,7 @@ public class Class {
         this.collectList = new ArrayList<>();
         this.variableList = new ArrayList<>();
     }
+
     public Class(String className, String classContext) {
         this();
         this.className = className;

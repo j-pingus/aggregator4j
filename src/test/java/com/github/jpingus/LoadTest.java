@@ -1,12 +1,8 @@
 package com.github.jpingus;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,9 +11,17 @@ import java.util.concurrent.Executors;
 
 public class LoadTest {
     private static final Log LOGGER = LogFactory.getLog(LoadTest.class);
-    private static double memoryUnit = 1024 * 1024;
+    private static final double memoryUnit = 1024 * 1024;
 
     Runtime runtime;
+
+    @BeforeClass
+    @AfterClass
+    public static void gcAndReport() {
+        System.gc();
+        double memory = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / memoryUnit;
+        LOGGER.info(String.format("Memory after GC:%10.1f", memory));
+    }
 
     @Before
     public void initContext() {
@@ -32,26 +36,21 @@ public class LoadTest {
         Processor.process(i, "i", context);
         double memory = (runtime.totalMemory() - runtime.freeMemory()) / memoryUnit;
         time = System.currentTimeMillis() - time;
-        LOGGER.info(String.format("%10d,%10d,%10.1f,%10d", seed, time, memory,context.size()));
+        LOGGER.info(String.format("%10d,%10d,%10.1f,%10d", seed, time, memory, context.size()));
         return i;
     }
+
     @After
-    public void memory(){
+    public void memory() {
         double memory = (runtime.totalMemory() - runtime.freeMemory()) / memoryUnit;
-        LOGGER.info(String.format("Memory:%10.1f",memory));
+        LOGGER.info(String.format("Memory:%10.1f", memory));
     }
-    @BeforeClass
-    @AfterClass
-    public static void gcAndReport() {
-    	System.gc();
-    	double memory = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / memoryUnit;
-        LOGGER.info(String.format("Memory after GC:%10.1f",memory));
-    }
+
     @Test
     public void testOne() {
         Invoice i = test(1);
         Assert.assertEquals(2.92, i.averageUnitPrice, 0.01);
-        Assert.assertEquals(200.0, i.totalInvoice,0.01);
+        Assert.assertEquals(200.0, i.totalInvoice, 0.01);
         Assert.assertEquals(110, i.totalQuantity);
     }
 
@@ -62,13 +61,12 @@ public class LoadTest {
             service.execute(() -> {
                 Invoice i = test(1);
                 Assert.assertEquals(2.92, i.averageUnitPrice, 0.01);
-                Assert.assertEquals(200.0, i.totalInvoice,0.01);
+                Assert.assertEquals(200.0, i.totalInvoice, 0.01);
                 Assert.assertEquals(110, i.totalQuantity);
             });
         }
         service.shutdown();
-        while (!service.isTerminated()) {
-        }
+        while (!service.isTerminated());
 
     }
 
@@ -112,8 +110,7 @@ public class LoadTest {
                 Assert.assertEquals(1001000, i.totalQuantity);
             });
         service.shutdown();
-        while (!service.isTerminated()) {
-        }
+        while (!service.isTerminated()) ;
     }
 
     @Test
@@ -128,7 +125,7 @@ public class LoadTest {
                     }
             );
         service.shutdown();
-        while (!service.isTerminated()) {
+        while (!service.isTerminated()) ;
         }
     }
 
@@ -146,29 +143,29 @@ public class LoadTest {
             this.unitPrice = unitPrice;
         }
 
-		public int getQuantity() {
-			return quantity;
-		}
+        public int getQuantity() {
+            return quantity;
+        }
 
-		public void setQuantity(int quantity) {
-			this.quantity = quantity;
-		}
+        public void setQuantity(int quantity) {
+            this.quantity = quantity;
+        }
 
-		public double getUnitPrice() {
-			return unitPrice;
-		}
+        public double getUnitPrice() {
+            return unitPrice;
+        }
 
-		public void setUnitPrice(double unitPrice) {
-			this.unitPrice = unitPrice;
-		}
+        public void setUnitPrice(double unitPrice) {
+            this.unitPrice = unitPrice;
+        }
 
-		public double getTotalPrice() {
-			return totalPrice;
-		}
+        public double getTotalPrice() {
+            return totalPrice;
+        }
 
-		public void setTotalPrice(double totalPrice) {
-			this.totalPrice = totalPrice;
-		}
+        public void setTotalPrice(double totalPrice) {
+            this.totalPrice = totalPrice;
+        }
     }
 
     public class Invoice {
@@ -186,36 +183,36 @@ public class LoadTest {
                 this.details.add(new Detail(2 * value, 10.0 / value));
         }
 
-		public List<Detail> getDetails() {
-			return details;
-		}
+        public List<Detail> getDetails() {
+            return details;
+        }
 
-		public void setDetails(List<Detail> details) {
-			this.details = details;
-		}
+        public void setDetails(List<Detail> details) {
+            this.details = details;
+        }
 
-		public long getTotalQuantity() {
-			return totalQuantity;
-		}
+        public long getTotalQuantity() {
+            return totalQuantity;
+        }
 
-		public void setTotalQuantity(long totalQuantity) {
-			this.totalQuantity = totalQuantity;
-		}
+        public void setTotalQuantity(long totalQuantity) {
+            this.totalQuantity = totalQuantity;
+        }
 
-		public double getAverageUnitPrice() {
-			return averageUnitPrice;
-		}
+        public double getAverageUnitPrice() {
+            return averageUnitPrice;
+        }
 
-		public void setAverageUnitPrice(double averageUnitPrice) {
-			this.averageUnitPrice = averageUnitPrice;
-		}
+        public void setAverageUnitPrice(double averageUnitPrice) {
+            this.averageUnitPrice = averageUnitPrice;
+        }
 
-		public double getTotalInvoice() {
-			return totalInvoice;
-		}
+        public double getTotalInvoice() {
+            return totalInvoice;
+        }
 
-		public void setTotalInvoice(double totalInvoice) {
-			this.totalInvoice = totalInvoice;
-		}
+        public void setTotalInvoice(double totalInvoice) {
+            this.totalInvoice = totalInvoice;
+        }
     }
 }

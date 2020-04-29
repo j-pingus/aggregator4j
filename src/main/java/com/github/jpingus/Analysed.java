@@ -21,8 +21,8 @@ class Analysed {
     Analysed(Class objectClass, String packageStart) {
         Context cx = (Context) objectClass.getDeclaredAnnotation(Context.class);
         classContext = cx == null ? null : cx.value();
-        classCollects = analyse(null,(com.github.jpingus.Collect[]) objectClass.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class));
-        if (classCollects != null && classCollects.size() == 0)
+        classCollects = analyse(null, (com.github.jpingus.Collect[]) objectClass.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class));
+        if (classCollects.size() == 0)
             classCollects = null;
         if (objectClass.isArray()) {
             classType = CLASS_TYPE.ARRAY;
@@ -58,7 +58,7 @@ class Analysed {
                 if (executors != null && executors.length > 0) {
                     executes.put(fieldName, analyse(fieldName, executors));
                 } else if (collectors != null && collectors.length > 0) {
-                    collects.put(fieldName, analyse(fieldName,collectors));
+                    collects.put(fieldName, analyse(fieldName, collectors));
                 } else {
                     otherFields.add(fieldName);
                 }
@@ -92,10 +92,10 @@ class Analysed {
         return executeList;
     }
 
-    private List<Collect> analyse(String field,com.github.jpingus.Collect[] collects) {
+    private List<Collect> analyse(String field, com.github.jpingus.Collect[] collects) {
         List<Collect> ret = new ArrayList<>();
         for (com.github.jpingus.Collect collect : collects) {
-            ret.add(new Collect(field, collect.what(),collect.value(), collect.when()));
+            ret.add(new Collect(field, collect.what(), collect.value(), collect.when()));
         }
         return ret;
     }
@@ -149,7 +149,7 @@ class Analysed {
 
     void addCollectField(String field, String to, String when) {
         field = sanitizeFieldName(field);
-        Collect collect = new Collect(field,null,to, when);
+        Collect collect = new Collect(field, null, to, when);
         if (!collects.containsKey(field)) {
             collects.put(field, new ArrayList<>());
         }
@@ -157,7 +157,7 @@ class Analysed {
     }
 
     void addCollectClass(String what, String to, String when) {
-        classCollects.add(new Collect(null,what,to,  when));
+        classCollects.add(new Collect(null, what, to, when));
     }
 
     void addVariable(String field, String variable) {
