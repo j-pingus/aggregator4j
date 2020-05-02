@@ -2,6 +2,7 @@ package com.github.jpingus;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -35,7 +36,7 @@ public class ProcessorTest {
 
     @Before
     public void initContext() {
-        myAggregatorContext = new AggregatorContext(false);
+        myAggregatorContext = AggregatorContext.builder().debug(false).build();
         //Adding custom functions to the context
         myAggregatorContext.register("my", Functions.class);
         myAggregatorContext.setPackageStart("com.github.jpingus");
@@ -60,6 +61,11 @@ public class ProcessorTest {
         );
     }
 
+    @After
+    public void extractConfig() {
+        System.out.println(ConfigurationFactory.extractConfig(myAggregatorContext));
+    }
+
     @Test
     public void test() {
         Processor.process(b, "b", myAggregatorContext);
@@ -81,12 +87,13 @@ public class ProcessorTest {
         Double[] o2 = myAggregatorContext.asArray("test array double");
         Assert.assertEquals(7, o2.length);
         myAggregatorContext.asArray("Grand total c");
-        ConfigurationFactory.extractConfig(myAggregatorContext, System.out);
+        ConfigurationFactory.marshall(myAggregatorContext, System.out);
     }
 
     @Test
     public void testError() {
-        AggregatorContext context = Processor.process(b, "b", new AggregatorContext(true));
+        AggregatorContext context = Processor.process(b, "b",
+                AggregatorContext.builder().debug(true).build());
         LOG.info("trace of execution:" + context.getLastProcessTrace());
         context.evaluate("error");
         context.count("whatever");
@@ -112,10 +119,8 @@ public class ProcessorTest {
         Set<String> aggregators = myAggregatorContext.aggregators();
         LOG.debug(aggregators);
         Assert.assertNotNull(aggregators);
-        Assert.assertEquals(6, aggregators.size());
-        Set<String> expectedAggregators = new HashSet<>();
-        Collections.addAll(expectedAggregators, "Big decimal", "total", "Grand total c", "All my ccm2 ids", "Grand total a", "total2");
-        Assert.assertEquals(expectedAggregators, aggregators);
+        Assert.assertEquals(8, aggregators.size());
+        Assert.assertThat(aggregators, hasItems("Big decimal", "total", "Grand total c", "All my ccm2 ids", "Grand total a", "test array double", "total2", "test array int"));
     }
 
     @Test

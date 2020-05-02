@@ -32,7 +32,7 @@ public class LoadTest {
     public Invoice test(int seed) {
         Invoice i = new Invoice(seed);
         long time = System.currentTimeMillis();
-        AggregatorContext context = new AggregatorContext(false);
+        AggregatorContext context = AggregatorContext.builder().debug(false).build();
         Processor.process(i, "i", context);
         double memory = (runtime.totalMemory() - runtime.freeMemory()) / memoryUnit;
         time = System.currentTimeMillis() - time;
@@ -66,7 +66,7 @@ public class LoadTest {
             });
         }
         service.shutdown();
-        while (!service.isTerminated());
+        while (!service.isTerminated()) ;
 
     }
 
@@ -126,7 +126,7 @@ public class LoadTest {
             );
         service.shutdown();
         while (!service.isTerminated()) ;
-        }
+
     }
 
     @Collect(value = "total", what = "this.totalPrice")

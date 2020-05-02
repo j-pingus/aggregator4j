@@ -25,7 +25,7 @@ public class Processor {
      * aggregators
      */
     public static AggregatorContext process(Object o) {
-        return process(o, o.getClass().getSimpleName(), new AggregatorContext(true));
+        return process(o, o.getClass().getSimpleName(), AggregatorContext.builder().build());
     }
 
     /**

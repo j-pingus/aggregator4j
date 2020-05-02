@@ -28,7 +28,7 @@ public class TestMap {
 
     @Test
     public void testMap() {
-        AggregatorContext context = new AggregatorContext();
+        AggregatorContext context = AggregatorContext.builder().build();
         context.register("test", Mapper.class);
         Processor.process(container, "c", context);
         Assert.assertEquals(101.09d,

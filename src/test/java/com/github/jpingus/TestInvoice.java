@@ -16,13 +16,14 @@ public class TestInvoice {
 
     @Test
     public void testWithContext() {
-        AggregatorContext context = Processor.process(toTest, "t", new AggregatorContext());
+        AggregatorContext context = Processor.process(toTest, "t", AggregatorContext.builder().build());
         Assert.assertEquals(777, toTest.totalPrice);
         Assert.assertEquals(7, toTest.groups[0].total.totalPrice);
         Assert.assertEquals(70, toTest.groups[1].total.totalPrice);
         Assert.assertEquals(700, toTest.groups[2].total.totalPrice);
         Assert.assertEquals(7, context.sum("id"));
-        ConfigurationFactory.extractConfig(context, System.out);
+        ConfigurationFactory.marshall(context, System.out);
+        System.out.println(ConfigurationFactory.extractConfig(context));
     }
 
     public static class GroupTotal {
@@ -62,6 +63,8 @@ public class TestInvoice {
         @Collect("totalPrice")
         @Collect("group.totalPrice")
         public int price;
+        @Collect("size")
+        public int size = 1;
 
         public Detail(int price) {
             this.price = price;
@@ -74,6 +77,7 @@ public class TestInvoice {
         @Execute("sum('totalPrice')")
         public int totalPrice;
         public int ignorable;
+
         public Invoice(Group... groups) {
             super();
             this.groups = groups;

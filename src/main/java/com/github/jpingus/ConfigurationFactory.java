@@ -19,6 +19,9 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.github.jpingus.StringFunctions.isEmpty;
 
@@ -43,16 +46,6 @@ public class ConfigurationFactory {
     private static final String CONTEXT = "context";
 
     private ConfigurationFactory() {
-    }
-
-    /**
-     * Parse the xml provided in the stream and transform into AggregatorContext
-     *
-     * @param config inputStream containing XML
-     * @return built context
-     */
-    public static AggregatorContext buildAggregatorContext(InputStream config) {
-        return buildAggregatorContext(unMarshall(config));
     }
 
     /**
@@ -162,80 +155,131 @@ public class ConfigurationFactory {
         return false;
     }
 
-    public static void extractConfig(AggregatorContext context, OutputStream out) {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder builder;
-        Document docConfig;
-        try {
-            builder = factory.newDocumentBuilder();
-        } catch (Exception e) {
-            throw new Error("Could not parse aggeregator4j config", e);
-        }
-        docConfig = builder.newDocument();
-        Element root = docConfig.createElement(AGGREGATOR4J);
-        docConfig.appendChild(root);
-        root.appendChild(withAttribute(
-                docConfig.createElement(PACKAGE)
-                , NAME, context.getPackageStart())
-        );
+    public static Aggregator4j extractConfig(AggregatorContext context) {
+        Aggregator4j config = new Aggregator4j();
+        config.setAnalysedPackage(context.getPackageStart());
         if (context.getProcessing() != null)
-            withAttribute(root, PROCESSING, context.getProcessing().getClass().getName());
-        context.getRegisteredNamespaces().forEach((namespace, clazz) ->
-                root.appendChild(withAttribute(withAttribute(
-                        docConfig.createElement(FUNCTION)
-                        , NAMESPACE, namespace)
-                        , REGISTER_CLASS, clazz.getName())));
-        context.getAnalysedCache().forEach((clazz, analysed) -> {
-            if (analysed.classType == Analysed.CLASS_TYPE.PROCESSABLE) {
-                Element classElement = withAttribute(withAttribute(
-                        docConfig.createElement(CLASS)
-                        , NAME, clazz.getName())
-                        , CONTEXT, analysed.classContext);
-                root.appendChild(classElement);
-                if (analysed.classCollects != null)
-                    analysed.classCollects.forEach(collect ->
-                            classElement.appendChild(withAttribute(withAttribute(withAttribute(
-                                    docConfig.createElement(COLLECT)
-                                    , WHAT, collect.getWhat())
-                                    , TO, collect.getTo())
-                                    , WHEN, collect.getWhen())
-                            ));
-                if (analysed.collects != null)
-                    analysed.collects.forEach((field, collects) ->
-                            collects.forEach(collect ->
-                                    classElement.appendChild(withAttribute(withAttribute(withAttribute(
-                                            docConfig.createElement(COLLECT)
-                                            , FIELD, field)
-                                            , TO, collect.getTo())
-                                            , WHEN, collect.getWhen())
+            config.setProcessing(context.getProcessing().getClass().getName());
+        config.setFunctionList(extractFunctions(context));
+        config.setClassList(context.getAnalysedCache().entrySet().stream()
+                .filter(ConfigurationFactory::isProcessable)
+                .map(ConfigurationFactory::toClass)
+                .collect(Collectors.toList()));
+        return config;
+    }
 
-                                    )));
-                if (analysed.executes != null)
-                    analysed.executes.forEach((field, executes) ->
-                            executes.forEach(execute ->
-                                    classElement.appendChild(withAttribute(withAttribute(withAttribute(
-                                            docConfig.createElement(EXECUTE)
-                                            , FIELD, field)
-                                            , JEXL, execute.getJexl())
-                                            , WHEN, execute.getWhen())
-                                    )));
-                if (analysed.variables != null)
-                    analysed.variables.forEach((field, variable) ->
-                            classElement.appendChild(withAttribute(withAttribute(
-                                    docConfig.createElement(VARIABLE)
-                                    , FIELD, field)
-                                    , NAME, variable)
-                            ));
-            }
-        });
-        prettyPrint(docConfig, out);
 
+    private static Class toClass(Map.Entry<java.lang.Class, Analysed> classAnalysedEntry) {
+        Class ret = new Class(classAnalysedEntry.getKey().getName(), classAnalysedEntry.getValue().classContext);
+        ret.setCollectList(
+                Stream.concat(
+                        Optional.ofNullable(
+                                classAnalysedEntry.getValue().classCollects).orElse(Collections.emptyList())
+                                .stream(),
+                        Optional.ofNullable(
+                                classAnalysedEntry.getValue().collects.values()).orElse(Collections.emptyList())
+                                .stream()
+                                .flatMap(list -> list.stream()))
+                        .collect(Collectors.toList()));
+
+        ret.setExecuteList(
+                Optional.ofNullable(classAnalysedEntry.getValue().executes)
+                        .orElse(Collections.emptyMap())
+                        .values().stream()
+                        .flatMap(list -> list.stream())
+                        .collect(Collectors.toList())
+        );
+        ret.setVariableList(
+                classAnalysedEntry.getValue().variables.entrySet().stream()
+                        .map(variable -> new Variable(variable.getKey(), variable.getValue()))
+                        .collect(Collectors.toList())
+        );
+        return ret;
+    }
+
+    private static boolean isProcessable(Map.Entry<java.lang.Class, Analysed> classAnalysedEntry) {
+        return classAnalysedEntry.getValue().classType == Analysed.CLASS_TYPE.PROCESSABLE;
+    }
+
+    private static List<Function> extractFunctions(AggregatorContext context) {
+        List<Function> ret = new ArrayList<>();
+        if (context.getRegisteredNamespaces() != null)
+            context.getRegisteredNamespaces().forEach((name, clazz) ->
+                    ret.add(new Function(name, clazz.getName()))
+            );
+        return ret;
+    }
+
+    public static void marshall(AggregatorContext context, OutputStream out) {
+        marshall(extractConfig(context), out);
     }
 
     private static Element withAttribute(Element element, String attributeName, String attributeValue) {
         if (!isEmpty(attributeValue))
             element.setAttribute(attributeName, attributeValue);
         return element;
+    }
+
+    /**
+     * Transform a configuratin in XML output stream;
+     *
+     * @param config the config to marshall
+     * @param out    the outputStream to marshall to.
+     */
+    public static void marshall(Aggregator4j config, OutputStream out) {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder;
+        Document docConfig;
+        try {
+            builder = factory.newDocumentBuilder();
+        } catch (Exception e) {
+            throw new Error("Could not build new Document", e);
+        }
+        docConfig = builder.newDocument();
+        Element root = docConfig.createElement(AGGREGATOR4J);
+        docConfig.appendChild(root);
+        root.appendChild(withAttribute(
+                docConfig.createElement(PACKAGE)
+                , NAME, config.getAnalysedPackage())
+        );
+        if (config.getProcessing() != null)
+            withAttribute(root, PROCESSING, config.getProcessing().getClass().getName());
+        config.getFunctionList().forEach((function) ->
+                root.appendChild(withAttribute(withAttribute(
+                        docConfig.createElement(FUNCTION)
+                        , NAMESPACE, function.getNamespace())
+                        , REGISTER_CLASS, function.getRegisterClass())));
+        config.getClassList().forEach(clazz -> {
+            Element classElement = withAttribute(withAttribute(
+                    docConfig.createElement(CLASS)
+                    , NAME, clazz.getClassName())
+                    , CONTEXT, clazz.getClassContext());
+            root.appendChild(classElement);
+            clazz.getCollectList().forEach(collect -> {
+                classElement.appendChild(withAttribute(withAttribute(withAttribute(withAttribute(
+                        docConfig.createElement(COLLECT)
+                        , FIELD, collect.getField())
+                        , WHAT, collect.getWhat())
+                        , TO, collect.getTo())
+                        , WHEN, collect.getWhen()));
+            });
+            clazz.getExecuteList().forEach(execute -> {
+                classElement.appendChild(withAttribute(withAttribute(withAttribute(
+                        docConfig.createElement(EXECUTE)
+                        , FIELD, execute.getField())
+                        , JEXL, execute.getJexl())
+                        , WHEN, execute.getWhen()));
+            });
+            clazz.getVariableList().forEach(variable -> {
+                classElement.appendChild(withAttribute(withAttribute(
+                        docConfig.createElement(VARIABLE)
+                        , FIELD, variable.getField())
+                        , NAME, variable.getVariable()));
+            });
+
+            prettyPrint(docConfig, out);
+
+        });
     }
 
     private static void prettyPrint(Document xml, OutputStream out) {
@@ -253,89 +297,6 @@ public class ConfigurationFactory {
             throw new Error("Could not write config to stream", e);
         }
     }
-
-    public static AggregatorContext buildAggregatorContext(Aggregator4j docConfig) {
-        return buildAggregatorContext(docConfig, null);
-    }
-
-    public static AggregatorContext buildAggregatorContext(Aggregator4j docConfig, ClassLoader loader) {
-        AggregatorContext context = new AggregatorContext(true);
-        if (loader != null)
-            context.setClassLoader(loader);
-        analyseProcessing(context, docConfig.getProcessing());
-        analysePackage(context, docConfig);
-        analyseFunction(context, docConfig);
-        analyseClass(context, docConfig);
-        return context;
-    }
-
-    private static void analyseProcessing(AggregatorContext context, String processing) {
-        java.lang.Class clazz;
-        try {
-            clazz = context.loadClass(processing);
-            Object o = clazz.newInstance();
-            if (o instanceof AggregatorProcessing) {
-                context.setProcessing((AggregatorProcessing) o);
-            } else {
-                context.error(processing + " do not implement " + AggregatorProcessing.class.getName());
-            }
-        } catch (Throwable e) {
-            context.error("Cannot register processing class " + processing, e);
-        }
-    }
-
-    private static void analyseFunction(AggregatorContext context, Aggregator4j config) {
-        for (Function function : config.getFunctionList()) {
-            java.lang.Class clazz;
-            try {
-                clazz = context.loadClass(function.getRegisterClass());
-                context.register(function.getNamespace(), clazz);
-            } catch (ClassNotFoundException e) {
-                context.error("Cannot register namespace function" + function.getRegisterClass(), e);
-            }
-
-        }
-    }
-
-    private static void analysePackage(AggregatorContext context, Aggregator4j config) {
-        context.setPackageStart(config.getAnalysedPackage());
-    }
-
-    private static void analyseClass(AggregatorContext context, Aggregator4j config) {
-        for (Class clazzConfig : config.getClassList()) {
-            java.lang.Class clazz;
-
-            try {
-                clazz = context.loadClass(clazzConfig.getClassName());
-            } catch (ClassNotFoundException e) {
-                throw new Error("Cannot analyse class:" + clazzConfig.getClassName(), e);
-            }
-            Analysed analysed = new Analysed();
-            analysed.classContext = clazzConfig.getClassContext();
-            analyseClassConfig(clazzConfig, analysed);
-            analysed.classType = Analysed.CLASS_TYPE.PROCESSABLE;
-            analysed.addOtherFields(clazz);
-            analysed.prune();
-
-            context.cacheAndValidate(clazz, analysed);
-        }
-    }
-
-    private static void analyseClassConfig(Class clazzConfig, Analysed analysed) {
-        clazzConfig.getExecuteList()
-                .forEach(e -> analysed.addExecute(e.getField(), e.getJexl(), e.getWhen()));
-        clazzConfig.getCollectList()
-                .stream()
-                .filter(collect -> !isEmpty(collect.getField()))
-                .forEach(c -> analysed.addCollectField(c.getField(), c.getTo(), c.getWhen()));
-        clazzConfig.getCollectList()
-                .stream()
-                .filter(collect -> !isEmpty(collect.getWhat()))
-                .forEach(c -> analysed.addCollectClass(c.getWhat(), c.getTo(), c.getWhen()));
-        clazzConfig.getVariableList()
-                .forEach(variable -> analysed.addVariable(variable.getField(), variable.getVariable()));
-    }
-
 
     private static String getAttribute(Node item, String attributeName) {
         Node attribute = item.getAttributes().getNamedItem(attributeName);

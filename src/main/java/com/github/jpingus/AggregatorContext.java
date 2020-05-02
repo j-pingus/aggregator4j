@@ -1,5 +1,8 @@
 package com.github.jpingus;
 
+import com.github.jpingus.model.Aggregator4j;
+import com.github.jpingus.model.Class;
+import com.github.jpingus.model.Function;
 import com.github.jpingus.model.ProcessTrace;
 import org.apache.commons.jexl3.*;
 import org.apache.commons.logging.Log;
@@ -7,27 +10,24 @@ import org.apache.commons.logging.LogFactory;
 
 import java.util.*;
 
+import static com.github.jpingus.StringFunctions.isEmpty;
+
 public class AggregatorContext implements JexlContext.NamespaceResolver, JexlContext {
     private static final int SIZE_MAX = 2000;
     private static final Log LOGGER = LogFactory.getLog(AggregatorContext.class);
-    private final Map<Class, Analysed> analysedCache = new HashMap<>();
+    private final Map<java.lang.Class, Analysed> analysedCache = new HashMap<>();
     private final JexlEngine jexl;
-    private final Map<String, Class> registeredNamespaces;
+    private final Map<String, java.lang.Class> registeredNamespaces;
     private final JexlContext localContext;
     private final Map<String, Aggregator> aggregators;
-    private AggregatorProcessing processing;
-    private ProcessTrace processTrace;
     private final boolean debug;
     private final int sizeMax = SIZE_MAX;
+    private AggregatorProcessing processing;
+    private ProcessTrace processTrace;
     private String packageStart;
     private ClassLoader classLoader = null;
-    /**
-     * Constructor :-)
-     */
-    AggregatorContext() {
-        this(true);
-    }
-    AggregatorContext(boolean debug) {
+
+    private AggregatorContext(boolean debug) {
         this.jexl = new JexlBuilder().create();
         this.localContext = new MapContext();
         this.aggregators = new HashMap<>();
@@ -35,6 +35,10 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         this.processTrace = new ProcessTrace();
         this.debug = debug;
         this.packageStart = null;
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 
     public AggregatorProcessing getProcessing() {
@@ -62,11 +66,11 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         this.classLoader = classLoader;
     }
 
-    Map<String, Class> getRegisteredNamespaces() {
+    Map<String, java.lang.Class> getRegisteredNamespaces() {
         return registeredNamespaces;
     }
 
-    Map<Class, Analysed> getAnalysedCache() {
+    Map<java.lang.Class, Analysed> getAnalysedCache() {
         return analysedCache;
     }
 
@@ -102,7 +106,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @param namespace the string to prefix the functions
      * @param clazz     the class containing functions to register
      */
-    public void register(String namespace, Class clazz) {
+    public void register(String namespace, java.lang.Class clazz) {
         registeredNamespaces.put(namespace, clazz);
     }
 
@@ -230,13 +234,13 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             Integer[] ret2 = new Integer[((int[]) ret).length];
             int idx = 0;
             for (int i : ((int[]) ret)) ret2[idx] = ((int[]) ret)[idx++];
-            return (T[])ret2;
+            return (T[]) ret2;
         }
         if (ret instanceof double[]) {
             Double[] ret2 = new Double[((double[]) ret).length];
             int idx = 0;
             for (double i : ((double[]) ret)) ret2[idx] = ((double[]) ret)[idx++];
-            return (T[])ret2;
+            return (T[]) ret2;
         }
         return (T[]) ret;
     }
@@ -338,7 +342,6 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         }
     }
 
-
     public void addVariable(String variable, Object object) {
         // TODO Auto-generated method stub
         localContext.set("$" + variable, object);
@@ -356,7 +359,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         return debug;
     }
 
-    public void analyse(Class clazz, Analysed analysed) {
+    public void analyse(java.lang.Class clazz, Analysed analysed) {
         analysed.classType = Analysed.CLASS_TYPE.PROCESSABLE;
         analysed.addOtherFields(clazz);
         analysed.prune();
@@ -401,7 +404,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             processTrace.traceWarning(message);
     }
 
-    public void cacheAndValidate(Class objectClass, Analysed analysed) {
+    public void cacheAndValidate(java.lang.Class objectClass, Analysed analysed) {
         if (analysed.executes != null && analysed.collects != null) {
             for (String field : analysed.executes.keySet()) {
                 if (analysed.collects.containsKey(field)) {
@@ -427,7 +430,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         analysedCache.put(objectClass, analysed);
     }
 
-    synchronized Analysed getAnalysed(Class objectClass) {
+    synchronized Analysed getAnalysed(java.lang.Class objectClass) {
         if (!analysedCache.containsKey(objectClass)) {
             Analysed analysed = new Analysed(objectClass, this.getPackageStart());
             cacheAndValidate(objectClass, analysed);
@@ -442,7 +445,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
      * @return the loaded class
      * @throws ClassNotFoundException when the class cannot be loaded
      */
-    protected Class<?> loadClass(String name) throws ClassNotFoundException {
+    protected java.lang.Class<?> loadClass(String name) throws ClassNotFoundException {
         if (classLoader == null) {
             return this.getClass().getClassLoader().loadClass(name);
         } else {
@@ -451,13 +454,16 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     }
 
     void preProcess(Object o) {
-        if(processing!=null)
-            processing.preProcess(o,this);
+        if (processing != null)
+            processing.preProcess(o, this);
     }
-    void postProcess(Object o){
-        if(processing!=null)
-            processing.postProcess(o,this);
+
+    void postProcess(Object o) {
+        if (processing != null)
+            processing.postProcess(o, this);
     }
+
+
     public interface AggregatorJEXLBuilder {
         String buildExpression(Aggregator a);
     }
@@ -499,5 +505,133 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
             formulas.clear();
 
         }
+    }
+
+    public static class Builder {
+        boolean debug;
+        ClassLoader classLoader;
+        Aggregator4j config;
+
+        private Builder() {
+        }
+
+        private static void analyseProcessing(AggregatorContext context, String processing) {
+            java.lang.Class clazz;
+            try {
+                clazz = context.loadClass(processing);
+                Object o = clazz.newInstance();
+                if (o instanceof AggregatorProcessing) {
+                    context.setProcessing((AggregatorProcessing) o);
+                } else {
+                    context.error(processing + " do not implement " + AggregatorProcessing.class.getName());
+                }
+            } catch (Throwable e) {
+                context.error("Cannot register processing class " + processing, e);
+            }
+        }
+
+        private static void analyseFunction(AggregatorContext context, Aggregator4j config) {
+            for (Function function : config.getFunctionList()) {
+                java.lang.Class clazz;
+                try {
+                    clazz = context.loadClass(function.getRegisterClass());
+                    context.register(function.getNamespace(), clazz);
+                } catch (ClassNotFoundException e) {
+                    context.error("Cannot register namespace function" + function.getRegisterClass(), e);
+                }
+
+            }
+        }
+
+        private static void analysePackage(AggregatorContext context, Aggregator4j config) {
+            context.setPackageStart(config.getAnalysedPackage());
+        }
+
+        private static void analyseClass(AggregatorContext context, Aggregator4j config) {
+            for (Class clazzConfig : config.getClassList()) {
+                java.lang.Class clazz;
+
+                try {
+                    clazz = context.loadClass(clazzConfig.getClassName());
+                } catch (ClassNotFoundException e) {
+                    throw new Error("Cannot analyse class:" + clazzConfig.getClassName(), e);
+                }
+                Analysed analysed = new Analysed();
+                analysed.classContext = clazzConfig.getClassContext();
+                analyseClassConfig(clazzConfig, analysed);
+                analysed.classType = Analysed.CLASS_TYPE.PROCESSABLE;
+                analysed.addOtherFields(clazz);
+                analysed.prune();
+
+                context.cacheAndValidate(clazz, analysed);
+            }
+        }
+
+        private static void analyseClassConfig(Class clazzConfig, Analysed analysed) {
+            clazzConfig.getExecuteList()
+                    .forEach(e -> analysed.addExecute(e.getField(), e.getJexl(), e.getWhen()));
+            clazzConfig.getCollectList()
+                    .stream()
+                    .filter(collect -> !isEmpty(collect.getField()))
+                    .forEach(c -> analysed.addCollectField(c.getField(), c.getTo(), c.getWhen()));
+            clazzConfig.getCollectList()
+                    .stream()
+                    .filter(collect -> !isEmpty(collect.getWhat()))
+                    .forEach(c -> analysed.addCollectClass(c.getWhat(), c.getTo(), c.getWhen()));
+            clazzConfig.getVariableList()
+                    .forEach(variable -> analysed.addVariable(variable.getField(), variable.getVariable()));
+        }
+
+        /**
+         * setup the configuration to be used;
+         *
+         * @param config configuration model
+         * @return the builder
+         */
+        public Builder config(Aggregator4j config) {
+            this.config = config;
+            return this;
+        }
+
+        /**
+         * setup the debug parameter
+         *
+         * @param debug enables debug mode
+         * @return the builder
+         */
+        public Builder debug(boolean debug) {
+            this.debug = debug;
+            return this;
+        }
+
+        /**
+         * sets the class loader to use
+         *
+         * @param classLoader a class loader
+         * @return the builder
+         */
+        public Builder classLoader(ClassLoader classLoader) {
+            this.classLoader = classLoader;
+            return this;
+        }
+
+        /**
+         * Builds a new aggregator context
+         *
+         * @return AggregatorContext
+         */
+        public AggregatorContext build() {
+            AggregatorContext context = new AggregatorContext(debug);
+            if (classLoader != null)
+                context.setClassLoader(classLoader);
+            if (config != null) {
+                analyseProcessing(context, config.getProcessing());
+                analysePackage(context, config);
+                analyseFunction(context, config);
+                analyseClass(context, config);
+            }
+            return context;
+        }
+
     }
 }

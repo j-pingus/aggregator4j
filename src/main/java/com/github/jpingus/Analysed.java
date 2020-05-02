@@ -18,6 +18,19 @@ class Analysed {
     Map<String, String> variables;
     List<String> otherFields;
 
+    @Override
+    public String toString() {
+        return "Analysed{" +
+                "classType=" + classType +
+                ", classContext='" + classContext + '\'' +
+                ", classCollects=" + classCollects +
+                ", collects=" + collects +
+                ", executes=" + executes +
+                ", variables=" + variables +
+                ", otherFields=" + otherFields +
+                '}';
+    }
+
     Analysed(Class objectClass, String packageStart) {
         Context cx = (Context) objectClass.getDeclaredAnnotation(Context.class);
         classContext = cx == null ? null : cx.value();
@@ -133,18 +146,6 @@ class Analysed {
         if (executes != null ? !executes.equals(analysed.executes) : analysed.executes != null) return false;
         if (variables != null ? !variables.equals(analysed.variables) : analysed.variables != null) return false;
         return otherFields != null ? otherFields.equals(analysed.otherFields) : analysed.otherFields == null;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = classType != null ? classType.hashCode() : 0;
-        result = 31 * result + (classContext != null ? classContext.hashCode() : 0);
-        result = 31 * result + (classCollects != null ? classCollects.hashCode() : 0);
-        result = 31 * result + (collects != null ? collects.hashCode() : 0);
-        result = 31 * result + (executes != null ? executes.hashCode() : 0);
-        result = 31 * result + (variables != null ? variables.hashCode() : 0);
-        result = 31 * result + (otherFields != null ? otherFields.hashCode() : 0);
-        return result;
     }
 
     void addCollectField(String field, String to, String when) {

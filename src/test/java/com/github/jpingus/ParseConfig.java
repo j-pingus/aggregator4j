@@ -11,8 +11,10 @@ public class ParseConfig {
 
 
     @Test
-    public void parse() throws ParserConfigurationException, IOException, SAXException {
-        AggregatorContext context = ConfigurationFactory.buildAggregatorContext(ParseConfig.class.getResourceAsStream("/config.xml"));
+    public void parse() {
+        AggregatorContext context = AggregatorContext.builder()
+                .config(ConfigurationFactory.unMarshall(ParseConfig.class.getResourceAsStream("/config.xml")))
+                .build();
         Assert.assertEquals(new Analysed(Business.class, "com.github.jpingus"), context.getAnalysed(Business.class));
         Assert.assertEquals(new Analysed(Row.class, "com.github.jpingus"), context.getAnalysed(Row.class));
         Assert.assertEquals(new Analysed(Rows.class, "com.github.jpingus"), context.getAnalysed(Rows.class));
