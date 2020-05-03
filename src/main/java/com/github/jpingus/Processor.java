@@ -5,10 +5,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.github.jpingus.StringFunctions.isEmpty;
 
@@ -38,24 +35,23 @@ public class Processor {
      * @return updated aggregator context
      */
     public static AggregatorContext process(Object o, String prefix, AggregatorContext aggregatorContext) {
-        List<ExecuteContext> executors = new ArrayList<>();
+        Map<String, List<ExecuteContext>> executors = new HashMap<>();
         aggregatorContext.set(prefix, o);
         if (isEmpty(aggregatorContext.getPackageStart())) {
             aggregatorContext.setPackageStart(o.getClass().getPackage().getName());
         }
         aggregatorContext.preProcess(o);
         process(prefix, o, aggregatorContext, executors);
-        for (ExecuteContext executeContext : executors) {
-            if (!executeContext.executed) {
-                aggregatorContext.execute(executeContext.field, executeContext.formula);
-            }
-        }
+        executors.values().stream()
+                .flatMap(List::stream)
+                .filter(e -> !e.executed)
+                .forEach(e -> execute(e, aggregatorContext));
         aggregatorContext.postProcess(o);
         return aggregatorContext;
     }
 
     private static void process(String prefix, Object o, AggregatorContext localContext,
-                                List<ExecuteContext> executeContexts) {
+                                Map<String, List<ExecuteContext>> executeContexts) {
         if (o == null)
             return;
         @SuppressWarnings("rawtypes")
@@ -65,12 +61,11 @@ public class Processor {
         try {
             if (!isEmpty(analysed.classContext)) {
                 localContext.setProcessTrace(localContext.getProcessTrace().traceContext(analysed.classContext));
-                for (ExecuteContext executeContext : executeContexts) {
-                    if (executeContext.formula.contains(analysed.classContext + ".") && !executeContext.executed) {
-                        localContext.execute(executeContext.field, executeContext.formula);
-                        executeContext.executed = true;
-                    }
-                }
+                executeContexts.values().stream()
+                        .flatMap(Collection::stream)
+                        .filter(e -> !e.executed)
+                        .filter(e -> e.formula.contains(analysed.classContext + "."))
+                        .forEach(e -> execute(e, localContext));
                 localContext.cleanContext(analysed.classContext);
             }
             int i = 0;
@@ -113,6 +108,13 @@ public class Processor {
                     return;
 
             }
+            //Prepare the field execution
+            analysed.executes
+                    .forEach((field, executeList) -> executeList.forEach(execute -> {
+                        if (applicable(o, execute.getWhen(), localContext)) {
+                            addExecuteContext(executeContexts, prefix, field, execute.getJexl());
+                        }
+                    }));
             for (String field : analysed.variables.keySet()) {
                 localContext.addVariable(analysed.variables.get(field), get(o, field, localContext));
             }
@@ -123,8 +125,11 @@ public class Processor {
             }
             //Collect the fields
             for (String field : analysed.collects.keySet()) {
+                String add = prefix + "." + field;
+                Optional.ofNullable(executeContexts.get(add))
+                        .orElse(Collections.emptyList())
+                        .forEach(e -> execute(e, localContext));
                 if (!isNull(o, field, localContext)) {
-                    String add = prefix + "." + field;
                     for (com.github.jpingus.model.Collect collect : analysed.collects.get(field)) {
                         if (applicable(o, collect.getWhen(), localContext)) {
                             localContext.collect(evaluate(o, collect.getTo(), localContext), add);
@@ -132,17 +137,16 @@ public class Processor {
                     }
                 }
             }
-            //Execute the fields
-            for (String field : analysed.executes.keySet()) {
-                for (com.github.jpingus.model.Execute execute : analysed.executes.get(field)) {
-                    if (applicable(o, execute.getWhen(), localContext)) {
-                        executeContexts.add(new ExecuteContext(prefix, field, execute.getJexl()));
-                    }
-                }
-            }
             if (analysed.classCollects != null) {
                 for (com.github.jpingus.model.Collect collect : analysed.classCollects) {
                     String formula = "(" + collect.getWhat().replaceAll("this\\.", prefix + ".") + ") ";
+                    executeContexts.forEach((field, executes) -> {
+                        if (formula.contains(field)) {
+                            executes.stream()
+                                    .filter(e -> !e.executed)
+                                    .forEach(e -> execute(e, localContext));
+                        }
+                    });
                     if (applicable(o, collect.getWhen(), localContext) && !isNull(formula, localContext)) {
                         localContext.collect(evaluate(o, collect.getTo(), localContext),
                                 formula);
@@ -152,6 +156,18 @@ public class Processor {
         } finally {
             localContext.setProcessTrace(current);
         }
+    }
+
+    private static void addExecuteContext(Map<String, List<ExecuteContext>> executeContexts, String prefix, String field, String jexl) {
+        String key = prefix + "." + field;
+        List<ExecuteContext> list = executeContexts.getOrDefault(key, new ArrayList<>());
+        list.add(new ExecuteContext(prefix, field, jexl));
+        executeContexts.put(prefix + "." + field, list);
+    }
+
+    private static void execute(ExecuteContext e, AggregatorContext localContext) {
+        localContext.execute(e.field, e.formula);
+        e.executed = true;
     }
 
     private static boolean isNull(String formula, AggregatorContext localContext) {

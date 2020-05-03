@@ -65,14 +65,15 @@ class Analysed {
                 com.github.jpingus.Execute[] executors = f.getDeclaredAnnotationsByType(com.github.jpingus.Execute.class);
                 com.github.jpingus.Collect[] collectors = f.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class);
                 String fieldName = sanitizeFieldName(f.getName());
-                if (executors != null && executors.length > 0 && collectors != null && collectors.length > 0) {
-                    LOGGER.warn(collectors.length + " @Collect ignored for " + fieldName);
-                }
-                if (executors != null && executors.length > 0) {
+                boolean executorsExist=executors != null && executors.length > 0;
+                boolean collectorsExist=collectors != null && collectors.length > 0;
+                if (executorsExist) {
                     executes.put(fieldName, analyse(fieldName, executors));
-                } else if (collectors != null && collectors.length > 0) {
+                }
+                if (collectorsExist) {
                     collects.put(fieldName, analyse(fieldName, collectors));
-                } else {
+                }
+                if(!executorsExist && ! collectorsExist) {
                     otherFields.add(fieldName);
                 }
             }

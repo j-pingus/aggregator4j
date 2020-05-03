@@ -129,13 +129,13 @@ public class LoadTest {
 
     }
 
-    @Collect(value = "total", what = "this.totalPrice")
     public class Detail {
         @Collect("quantity")
         public int quantity;
         @Collect("unitPrice")
         public double unitPrice;
         @Execute("this.quantity * this.unitPrice")
+        @Collect("total")
         public double totalPrice;
 
         public Detail(int quantity, double unitPrice) {
