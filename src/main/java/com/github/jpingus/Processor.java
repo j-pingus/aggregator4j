@@ -6,11 +6,14 @@ import org.apache.commons.logging.LogFactory;
 
 import java.lang.reflect.Array;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.github.jpingus.StringFunctions.isEmpty;
 
 public class Processor {
     private static final Log LOGGER = LogFactory.getLog(Processor.class);
+    private static final Pattern THIS_FIELD_PATTERN = Pattern.compile("this\\.(\\w+)");
 
     /**
      * Analyse recursively an object, collecting all the @Collects to aggregators,
@@ -44,7 +47,7 @@ public class Processor {
         process(prefix, o, aggregatorContext, executors);
         executors.values().stream()
                 .flatMap(List::stream)
-                .filter(e -> !e.executed)
+                .filter(Processor::notExecuted)
                 .forEach(e -> execute(e, aggregatorContext));
         aggregatorContext.postProcess(o);
         return aggregatorContext;
@@ -63,7 +66,7 @@ public class Processor {
                 localContext.setProcessTrace(localContext.getProcessTrace().traceContext(analysed.classContext));
                 executeContexts.values().stream()
                         .flatMap(Collection::stream)
-                        .filter(e -> !e.executed)
+                        .filter(Processor::notExecuted)
                         .filter(e -> e.formula.contains(analysed.classContext + "."))
                         .forEach(e -> execute(e, localContext));
                 localContext.cleanContext(analysed.classContext);
@@ -112,7 +115,7 @@ public class Processor {
             analysed.executes
                     .forEach((field, executeList) -> executeList.forEach(execute -> {
                         if (applicable(o, execute.getWhen(), localContext)) {
-                            addExecuteContext(executeContexts, prefix, field, execute.getJexl());
+                            addExecuteContext(executeContexts, prefix, field, execute.getJexl(), localContext);
                         }
                     }));
             for (String field : analysed.variables.keySet()) {
@@ -127,7 +130,7 @@ public class Processor {
             for (String field : analysed.collects.keySet()) {
                 String add = prefix + "." + field;
                 Optional.ofNullable(executeContexts.get(add))
-                        .orElse(Collections.emptyList())
+                        .orElse(Collections.emptyList()).stream().filter(Processor::notExecuted)
                         .forEach(e -> execute(e, localContext));
                 if (!isNull(o, field, localContext)) {
                     for (com.github.jpingus.model.Collect collect : analysed.collects.get(field)) {
@@ -139,14 +142,8 @@ public class Processor {
             }
             if (analysed.classCollects != null) {
                 for (com.github.jpingus.model.Collect collect : analysed.classCollects) {
-                    String formula = "(" + collect.getWhat().replaceAll("this\\.", prefix + ".") + ") ";
-                    executeContexts.forEach((field, executes) -> {
-                        if (formula.contains(field)) {
-                            executes.stream()
-                                    .filter(e -> !e.executed)
-                                    .forEach(e -> execute(e, localContext));
-                        }
-                    });
+                    String formula = "(" + executeFieldsFromFormula(prefix, collect.getWhat(), executeContexts, localContext) + ")";
+
                     if (applicable(o, collect.getWhen(), localContext) && !isNull(formula, localContext)) {
                         localContext.collect(evaluate(o, collect.getTo(), localContext),
                                 formula);
@@ -158,10 +155,32 @@ public class Processor {
         }
     }
 
-    private static void addExecuteContext(Map<String, List<ExecuteContext>> executeContexts, String prefix, String field, String jexl) {
+    private static boolean notExecuted(ExecuteContext executeContext) {
+        return !executeContext.executed;
+    }
+
+    private static String executeFieldsFromFormula(String prefix, String formula, Map<String, List<ExecuteContext>> executeContexts, AggregatorContext localContext) {
+        StringBuilder sb = new StringBuilder();
+        Matcher m = THIS_FIELD_PATTERN.matcher(formula);
+        int lastIndex = 0;
+        while (m.find()) {
+            sb.append(formula, lastIndex, m.start());
+            String field = prefix + '.' + m.group(1);
+            sb.append(field);
+            Optional.ofNullable(executeContexts.get(field))
+                    .orElse(new ArrayList<>()).stream().filter(Processor::notExecuted)
+                    .forEach(e -> execute(e, localContext));
+            lastIndex = m.end();
+        }
+        sb.append(formula.substring(lastIndex));
+        return sb.toString();
+    }
+
+    private static void addExecuteContext(Map<String, List<ExecuteContext>> executeContexts, String prefix, String field, String jexl, AggregatorContext localContext) {
         String key = prefix + "." + field;
         List<ExecuteContext> list = executeContexts.getOrDefault(key, new ArrayList<>());
-        list.add(new ExecuteContext(prefix, field, jexl));
+        String formula = executeFieldsFromFormula(prefix, jexl, executeContexts, localContext);
+        list.add(new ExecuteContext(key, formula));
         executeContexts.put(prefix + "." + field, list);
     }
 
@@ -216,9 +235,9 @@ public class Processor {
         boolean executed = false;
 
 
-        ExecuteContext(String parent, String field, String formula) {
-            this.field = parent + "." + field;
-            this.formula = formula.replaceAll("this\\.", parent + ".");
+        ExecuteContext(String field, String formula) {
+            this.field = field;
+            this.formula = formula;
         }
     }
 

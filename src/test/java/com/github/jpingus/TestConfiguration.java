@@ -21,8 +21,8 @@ public class TestConfiguration {
         Class c = new Class(Invoice.Line.class.getName(), null);
         c.getExecuteList().add(new Execute("price", "this.unitPrice * this.quantity", null));
         c.getExecuteList().add(new Execute("vat", "this.price * this.vatRate / 100", null));
-        c.getCollectList().add(new Collect("price", null, "totalPrice", null));
         c.getCollectList().add(new Collect("vat", null, "totalVat", null));
+        c.getCollectList().add(new Collect(null, "this.price + this.vat", "totalPrice", null));
         Class c2 = new Class(Invoice.class.getName(), null);
         c2.getExecuteList().add(new Execute("totalPrice", "sum('totalPrice')", null));
         c2.getExecuteList().add(new Execute("totalVat", "sum('totalVat')", null));
@@ -44,11 +44,11 @@ public class TestConfiguration {
 
     @Test
     public void test() {
-        AggregatorContext context = AggregatorContext.builder().config(config).build();
+        AggregatorContext context = AggregatorContext.builder().config(config).debug(true).build();
         context.process(invoice);
         double precision = 0.0001;
         Assert.assertEquals(23.841, invoice.totalVat, precision);
-        Assert.assertEquals(136.44, invoice.totalPrice, precision);
+        Assert.assertEquals(160.281, invoice.totalPrice, precision);
 
         Assert.assertEquals(105, invoice.lines[0].price, precision);
         Assert.assertEquals(18.9, invoice.lines[0].vat, precision);
