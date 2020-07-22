@@ -18,20 +18,7 @@ class Analysed {
     Map<String, String> variables;
     List<String> otherFields;
 
-    @Override
-    public String toString() {
-        return "Analysed{" +
-                "classType=" + classType +
-                ", classContext='" + classContext + '\'' +
-                ", classCollects=" + classCollects +
-                ", collects=" + collects +
-                ", executes=" + executes +
-                ", variables=" + variables +
-                ", otherFields=" + otherFields +
-                '}';
-    }
-
-    Analysed(Class objectClass, String packageStart) {
+    Analysed(Class objectClass, IgnorableClassDetector ignorableClassDetector) {
         Context cx = (Context) objectClass.getDeclaredAnnotation(Context.class);
         classContext = cx == null ? null : cx.value();
         classCollects = analyse(null, (com.github.jpingus.Collect[]) objectClass.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class));
@@ -47,8 +34,7 @@ class Analysed {
             classType = CLASS_TYPE.ITERABLE;
         } else if (objectClass.isPrimitive()) {
             classType = CLASS_TYPE.IGNORABLE;
-        } else if (objectClass.getPackage() != null
-                && !objectClass.getPackage().getName().startsWith(packageStart)) {
+        } else if (ignorableClassDetector.canIgnore(objectClass)) {
             classType = CLASS_TYPE.IGNORABLE;
         } else {
             classType = CLASS_TYPE.PROCESSABLE;
@@ -65,15 +51,15 @@ class Analysed {
                 com.github.jpingus.Execute[] executors = f.getDeclaredAnnotationsByType(com.github.jpingus.Execute.class);
                 com.github.jpingus.Collect[] collectors = f.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class);
                 String fieldName = sanitizeFieldName(f.getName());
-                boolean executorsExist=executors != null && executors.length > 0;
-                boolean collectorsExist=collectors != null && collectors.length > 0;
+                boolean executorsExist = executors != null && executors.length > 0;
+                boolean collectorsExist = collectors != null && collectors.length > 0;
                 if (executorsExist) {
                     executes.put(fieldName, analyse(fieldName, executors));
                 }
                 if (collectorsExist) {
                     collects.put(fieldName, analyse(fieldName, collectors));
                 }
-                if(!executorsExist && ! collectorsExist) {
+                if (!executorsExist && !collectorsExist) {
                     otherFields.add(fieldName);
                 }
             }
@@ -88,7 +74,6 @@ class Analysed {
         variables = new HashMap<>();
     }
 
-
     private static List<Field> getFields(Class baseClass) {
         ArrayList<Field> ret = new ArrayList<>();
         while (baseClass != null && baseClass != Object.class) {
@@ -96,6 +81,19 @@ class Analysed {
             baseClass = baseClass.getSuperclass();
         }
         return ret;
+    }
+
+    @Override
+    public String toString() {
+        return "Analysed{" +
+                "classType=" + classType +
+                ", classContext='" + classContext + '\'' +
+                ", classCollects=" + classCollects +
+                ", collects=" + collects +
+                ", executes=" + executes +
+                ", variables=" + variables +
+                ", otherFields=" + otherFields +
+                '}';
     }
 
     private List<Execute> analyse(String field, com.github.jpingus.Execute[] executes) {
@@ -180,6 +178,10 @@ class Analysed {
     }
 
     public enum CLASS_TYPE {ARRAY, LIST, MAP, ITERABLE, IGNORABLE, PROCESSABLE}
+
+    interface IgnorableClassDetector {
+        boolean canIgnore(Class aClass);
+    }
 
 
 }

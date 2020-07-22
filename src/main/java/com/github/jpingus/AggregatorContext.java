@@ -23,7 +23,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
     private final int sizeMax = SIZE_MAX;
     private AggregatorProcessing processing;
     private ProcessTrace processTrace;
-    private String packageStart;
+    private List<String> packageStarts;
     private ClassLoader classLoader = null;
 
     private AggregatorContext(boolean debug) {
@@ -33,7 +33,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         this.registeredNamespaces = new HashMap<>();
         this.processTrace = new ProcessTrace();
         this.debug = debug;
-        this.packageStart = null;
+        this.packageStarts = null;
     }
 
     public static Builder builder() {
@@ -365,12 +365,12 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         analysedCache.put(clazz, analysed);
     }
 
-    public String getPackageStart() {
-        return packageStart;
+    public List<String> getPackageStarts() {
+        return packageStarts;
     }
 
-    public void setPackageStart(String packageStart) {
-        this.packageStart = packageStart;
+    public void setPackageStarts(List<String> packageStarts) {
+        this.packageStarts = packageStarts;
     }
 
     public int size() {
@@ -429,9 +429,20 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
         analysedCache.put(objectClass, analysed);
     }
 
+    static Analysed.IgnorableClassDetector packageDetector(List<String> analysedPackages) {
+        return (clazz) -> {
+            if (clazz.getPackage() == null) return true;
+            String p = clazz.getPackage().getName();
+            for (String pStart : analysedPackages) {
+                if (p.startsWith(pStart)) return false;
+            }
+            return true;
+        };
+    }
+
     synchronized Analysed getAnalysed(java.lang.Class objectClass) {
         if (!analysedCache.containsKey(objectClass)) {
-            Analysed analysed = new Analysed(objectClass, this.getPackageStart());
+            Analysed analysed = new Analysed(objectClass, packageDetector(this.getPackageStarts()));
             cacheAndValidate(objectClass, analysed);
         }
         return analysedCache.get(objectClass);
@@ -545,9 +556,9 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
                     });
         }
 
-        private static void analysePackage(AggregatorContext context, String packageStart) {
-            if (!isEmpty(packageStart))
-                context.setPackageStart(packageStart);
+        private static void analysePackages(AggregatorContext context, List<String> packagesStart) {
+            if (packagesStart != null)
+                context.setPackageStarts(packagesStart);
         }
 
         private static void analyseClass(AggregatorContext context, Aggregator4j config) {
@@ -632,7 +643,7 @@ public class AggregatorContext implements JexlContext.NamespaceResolver, JexlCon
                 context.setClassLoader(classLoader);
             if (config != null) {
                 analyseProcessing(context, config.getProcessing());
-                analysePackage(context, config.getAnalysedPackage());
+                analysePackages(context, config.getAnalysedPackages());
                 analyseFunction(context, config);
                 analyseClass(context, config);
             }

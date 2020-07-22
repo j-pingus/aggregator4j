@@ -39,7 +39,7 @@ public class ProcessorTest {
         myAggregatorContext = AggregatorContext.builder().debug(false).build();
         //Adding custom functions to the context
         myAggregatorContext.register("my", Functions.class);
-        myAggregatorContext.setPackageStart("com.github.jpingus");
+        myAggregatorContext.setPackageStarts(Collections.singletonList("com.github.jpingus"));
         myAggregatorContext.setProcessing(
                 new AggregatorProcessing() {
                     @Override

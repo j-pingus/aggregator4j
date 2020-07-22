@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class Aggregator4j {
-    private String analysedPackage;
+    private List<String> analysedPackages;
     private String processing;
     private List<Function> functionList;
     private List<Class> classList;
@@ -56,22 +56,26 @@ public class Aggregator4j {
 
         if (!functionList.equals(that.functionList)) return false;
         if (!classList.equals(that.classList)) return false;
-        return Objects.equals(analysedPackage, that.analysedPackage);
+        return Objects.equals(analysedPackages, that.analysedPackages);
     }
 
     @Override
     public int hashCode() {
         int result = functionList.hashCode();
         result = 31 * result + classList.hashCode();
-        result = 31 * result + (analysedPackage != null ? analysedPackage.hashCode() : 0);
+        result = 31 * result + (analysedPackages != null ? analysedPackages.hashCode() : 0);
         return result;
     }
 
-    public String getAnalysedPackage() {
-        return analysedPackage;
+    public List<String> getAnalysedPackages() {
+        return analysedPackages;
+    }
+
+    public void setAnalysedPackages(List<String> analysedPackages) {
+        this.analysedPackages = analysedPackages;
     }
 
     public void setAnalysedPackage(String analysedPackage) {
-        this.analysedPackage = analysedPackage;
+        (this.analysedPackages = new ArrayList<>()).add(analysedPackage);
     }
 }

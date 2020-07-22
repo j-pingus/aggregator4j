@@ -40,8 +40,9 @@ public class Processor {
     public static AggregatorContext process(Object o, String prefix, AggregatorContext aggregatorContext) {
         Map<String, List<ExecuteContext>> executors = new HashMap<>();
         aggregatorContext.set(prefix, o);
-        if (isEmpty(aggregatorContext.getPackageStart())) {
-            aggregatorContext.setPackageStart(o.getClass().getPackage().getName());
+        if (aggregatorContext.getPackageStarts() == null) {
+            aggregatorContext.setPackageStarts(
+                    Arrays.asList(o.getClass().getPackage().getName()));
         }
         aggregatorContext.preProcess(o);
         process(prefix, o, aggregatorContext, executors);

@@ -139,7 +139,11 @@ public class ConfigurationFactory {
     private static void unMarshallPackage(Aggregator4j aggregator4j, Node item) {
         String name = getAttribute(item, NAME);
         if (!isEmpty(name))
-            aggregator4j.setAnalysedPackage(name);
+            if (aggregator4j.getAnalysedPackages() == null) {
+                aggregator4j.setAnalysedPackage(name);
+            } else {
+                aggregator4j.getAnalysedPackages().add(name);
+            }
         else
             LOGGER.warn(NAME + " attribute missing for " + PACKAGE);
     }
@@ -157,7 +161,7 @@ public class ConfigurationFactory {
 
     public static Aggregator4j extractConfig(AggregatorContext context) {
         Aggregator4j config = new Aggregator4j();
-        config.setAnalysedPackage(context.getPackageStart());
+        config.setAnalysedPackages(context.getPackageStarts());
         if (context.getProcessing() != null)
             config.setProcessing(context.getProcessing().getClass().getName());
         config.setFunctionList(extractFunctions(context));
@@ -238,10 +242,13 @@ public class ConfigurationFactory {
         docConfig = builder.newDocument();
         Element root = docConfig.createElement(AGGREGATOR4J);
         docConfig.appendChild(root);
-        root.appendChild(withAttribute(
-                docConfig.createElement(PACKAGE)
-                , NAME, config.getAnalysedPackage())
-        );
+        for (String analysedPackage : config.getAnalysedPackages()) {
+            root.appendChild(withAttribute(
+                    docConfig.createElement(PACKAGE)
+                    , NAME,
+                    analysedPackage)
+            );
+        }
         if (config.getProcessing() != null)
             withAttribute(root, PROCESSING, config.getProcessing().getClass().getName());
         config.getFunctionList().forEach((function) ->
