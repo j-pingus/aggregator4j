@@ -5,7 +5,7 @@
 
     <groupId>com.github.j-pingus</groupId>
     <artifactId>aggregator4j</artifactId>
-    <version>1.2-SNAPSHOT</version>
+    <version>1.3</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Library aggregating fields using annotations in complex objects structures</description>
     <url>https://github.com/j-pingus/aggregator4j</url>
@@ -68,7 +68,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-jexl3</artifactId>
-            <version>3.1</version>
+            <version>3.2.1</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
