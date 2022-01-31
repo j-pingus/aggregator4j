@@ -1,6 +1,6 @@
 package com.github.jpingus;
 
-import com.github.jpingus.model.Aggregator4j;
+import com.github.jpingus.model.AggregatorConfiguration;
 import com.github.jpingus.model.Class;
 import com.github.jpingus.model.Collect;
 import com.github.jpingus.model.Execute;
@@ -11,12 +11,12 @@ import org.junit.Test;
 import java.util.Arrays;
 
 public class TestConfiguration {
-    Aggregator4j config;
+    AggregatorConfiguration config;
     Invoice invoice;
 
     @Before
     public void configure() {
-        config = new Aggregator4j();
+        config = new AggregatorConfiguration();
         config.setAnalysedPackage(Invoice.class.getPackage().getName());
         Class c = new Class(Invoice.Line.class.getName(), null);
         c.getExecuteList().add(new Execute("price", "this.unitPrice * this.quantity", null));

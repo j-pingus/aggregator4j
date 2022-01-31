@@ -1,5 +1,6 @@
 package com.github.jpingus.model;
 
+
 import java.util.Objects;
 
 public class Collect {
