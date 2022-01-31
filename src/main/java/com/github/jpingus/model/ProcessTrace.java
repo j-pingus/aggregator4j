@@ -30,6 +30,10 @@ public class ProcessTrace {
         return add(new WarningTrace(message));
     }
 
+    public ProcessTrace traceDebug(String message) {
+        return add(new DebugTrace(message));
+    }
+
     public ProcessTrace traceVariable(String name, Object value) {
         return add(new VariableTrace(name, value == null ? "null" : value.toString()));
     }
@@ -49,7 +53,7 @@ public class ProcessTrace {
         return trace;
     }
 
-    enum TraceType {ROOT, EXECUTE, COLLECT, VARIABLE, CONTEXT, ERROR, WARNING}
+    enum TraceType {ROOT, EXECUTE, COLLECT, VARIABLE, CONTEXT, ERROR, WARNING, DEBUG}
 
     public static class ErrorTrace extends ProcessTrace {
         String message;
@@ -87,9 +91,31 @@ public class ProcessTrace {
         @Override
         public String toString() {
             return "{" +
-                    fieldsToString() +
-                    ", \"message\":\"" + message + '\"' +
-                    '}';
+                fieldsToString() +
+                ", \"message\":\"" + message + '\"' +
+                '}';
+        }
+    }
+
+
+    public static class DebugTrace extends ProcessTrace {
+        String debug;
+
+        public DebugTrace() {
+            this.type = TraceType.DEBUG;
+        }
+
+        public DebugTrace(String debug) {
+            this();
+            this.debug = debug;
+        }
+
+        @Override
+        public String toString() {
+            return "{" +
+                fieldsToString() +
+                ", \"debug\":\"" + debug + '\"' +
+                '}';
         }
     }
 

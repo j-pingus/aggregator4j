@@ -1,5 +1,6 @@
 package com.github.jpingus.model;
 
+
 public class Function {
     private String registerClass;
     private String namespace;

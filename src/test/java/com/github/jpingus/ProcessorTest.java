@@ -39,8 +39,9 @@ public class ProcessorTest {
         myAggregatorContext = AggregatorContext.builder().debug(false).build();
         //Adding custom functions to the context
         myAggregatorContext.register("my", Functions.class);
-        myAggregatorContext.setPackageStart("com.github.jpingus");
-        myAggregatorContext.setProcessing(
+        myAggregatorContext.setPackageStarts(Collections.singletonList("com.github.jpingus"));
+        myAggregatorContext.setProcessings(
+                Collections.singletonList(
                 new AggregatorProcessing() {
                     @Override
                     public void preProcess(Object o, AggregatorContext context) {
@@ -57,7 +58,7 @@ public class ProcessorTest {
                             }
                         }
                     }
-                }
+                })
         );
     }
 
@@ -69,18 +70,18 @@ public class ProcessorTest {
     @Test
     public void test() {
         Processor.process(b, "b", myAggregatorContext);
-        Assert.assertEquals(new Integer(162), b.total);
-        Assert.assertEquals(new Integer(26), b.total2);
-        Assert.assertEquals(new Integer(11), b.myGrandTotals.get("a").sum);
-        Assert.assertEquals(new Integer(20), b.myGrandTotals.get("b").sum);
-        Assert.assertEquals(new Integer(33), b.myGrandTotals.get("c").sum);
-        Assert.assertEquals(new Integer(12), b.doubleCount);
+        Assert.assertEquals(Integer.valueOf(162), b.total);
+        Assert.assertEquals(Integer.valueOf(26), b.total2);
+        Assert.assertEquals(Integer.valueOf(11), b.myGrandTotals.get("a").sum);
+        Assert.assertEquals(Integer.valueOf(20), b.myGrandTotals.get("b").sum);
+        Assert.assertEquals(Integer.valueOf(33), b.myGrandTotals.get("c").sum);
+        Assert.assertEquals(Integer.valueOf(12), b.doubleCount);
         Assert.assertEquals(4.3333, b.avg2, 0.0001);
         Assert.assertEquals(22.822, b.rate, 0.0001);
         Assert.assertEquals("[c,a,a,a,b]", b.ccm2);
         Assert.assertEquals(true, myAggregatorContext.contains("All my ccm2 ids", "a"));
         Assert.assertEquals(4.42, b.totalBig.doubleValue(), 0.001);
-        Assert.assertEquals(new Integer(15), myAggregatorContext.sum("Unknown aggregator", 15));
+        Assert.assertEquals( Integer.valueOf(15), myAggregatorContext.sum("Unknown aggregator", 15));
         //Just verify the auto boxing for primitive does not break
         Integer[] o1 = myAggregatorContext.asArray("test array int");
         Assert.assertThat(Arrays.asList(o1), hasItems(8, 0, 5, 5, 2, 3, 3));
@@ -106,7 +107,7 @@ public class ProcessorTest {
         Object result = myAggregatorContext.evaluate("my:divide(sum('total'),sum('total2'))");
         Assert.assertEquals(Double.class, result.getClass());
         Assert.assertEquals(0.166, (Double) result, 0.001);
-        Assert.assertEquals(new Integer(2), myAggregatorContext.count("total2"));
+        Assert.assertEquals( Integer.valueOf(2), myAggregatorContext.count("total2"));
         Assert.assertNull(myAggregatorContext.sum("TOTO"));
         Object[] ccm2Array = myAggregatorContext.asArray("All my ccm2 ids");
         Set<Object> ccm2Set = myAggregatorContext.asSet("All my ccm2 ids");

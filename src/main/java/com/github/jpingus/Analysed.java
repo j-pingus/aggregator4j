@@ -2,39 +2,24 @@ package com.github.jpingus;
 
 import com.github.jpingus.model.Collect;
 import com.github.jpingus.model.Execute;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import java.lang.reflect.Field;
 import java.util.*;
 
 class Analysed {
-    private static final Log LOGGER = LogFactory.getLog(Analysed.class);
-    CLASS_TYPE classType;
-    String classContext;
-    List<Collect> classCollects;
-    Map<String, List<Collect>> collects;
-    Map<String, List<Execute>> executes;
-    Map<String, String> variables;
-    List<String> otherFields;
-
-    @Override
-    public String toString() {
-        return "Analysed{" +
-                "classType=" + classType +
-                ", classContext='" + classContext + '\'' +
-                ", classCollects=" + classCollects +
-                ", collects=" + collects +
-                ", executes=" + executes +
-                ", variables=" + variables +
-                ", otherFields=" + otherFields +
-                '}';
-    }
-
-    Analysed(Class objectClass, String packageStart) {
+    private CLASS_TYPE classType;
+    private String classContext;
+    private List<Collect> classCollects;
+    private Map<String, List<Collect>> collects;
+    private Map<String, List<Execute>> executes;
+    private Map<String, String> variables;
+    private List<String> otherFields;
+    Analysed(Class objectClass, IgnorableClassDetector ignorableClassDetector) {
         Context cx = (Context) objectClass.getDeclaredAnnotation(Context.class);
         classContext = cx == null ? null : cx.value();
-        classCollects = analyse(null, (com.github.jpingus.Collect[]) objectClass.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class));
+        classCollects = analyse(null,
+                (com.github.jpingus.Collect[]) objectClass.getDeclaredAnnotationsByType(
+                        com.github.jpingus.Collect.class));
         if (classCollects.size() == 0)
             classCollects = null;
         if (objectClass.isArray()) {
@@ -47,8 +32,7 @@ class Analysed {
             classType = CLASS_TYPE.ITERABLE;
         } else if (objectClass.isPrimitive()) {
             classType = CLASS_TYPE.IGNORABLE;
-        } else if (objectClass.getPackage() != null
-                && !objectClass.getPackage().getName().startsWith(packageStart)) {
+        } else if (ignorableClassDetector.canIgnore(objectClass)) {
             classType = CLASS_TYPE.IGNORABLE;
         } else {
             classType = CLASS_TYPE.PROCESSABLE;
@@ -62,24 +46,25 @@ class Analysed {
                 if (variable != null) {
                     variables.put(f.getName(), variable.value());
                 }
-                com.github.jpingus.Execute[] executors = f.getDeclaredAnnotationsByType(com.github.jpingus.Execute.class);
-                com.github.jpingus.Collect[] collectors = f.getDeclaredAnnotationsByType(com.github.jpingus.Collect.class);
+                com.github.jpingus.Execute[] executors = f.getDeclaredAnnotationsByType(
+                        com.github.jpingus.Execute.class);
+                com.github.jpingus.Collect[] collectors = f.getDeclaredAnnotationsByType(
+                        com.github.jpingus.Collect.class);
                 String fieldName = sanitizeFieldName(f.getName());
-                boolean executorsExist=executors != null && executors.length > 0;
-                boolean collectorsExist=collectors != null && collectors.length > 0;
+                boolean executorsExist = executors != null && executors.length > 0;
+                boolean collectorsExist = collectors != null && collectors.length > 0;
                 if (executorsExist) {
                     executes.put(fieldName, analyse(fieldName, executors));
                 }
                 if (collectorsExist) {
                     collects.put(fieldName, analyse(fieldName, collectors));
                 }
-                if(!executorsExist && ! collectorsExist) {
+                if (!executorsExist && !collectorsExist) {
                     otherFields.add(fieldName);
                 }
             }
         }
     }
-
     Analysed() {
         classCollects = new ArrayList<>();
         otherFields = new ArrayList<>();
@@ -88,7 +73,6 @@ class Analysed {
         variables = new HashMap<>();
     }
 
-
     private static List<Field> getFields(Class baseClass) {
         ArrayList<Field> ret = new ArrayList<>();
         while (baseClass != null && baseClass != Object.class) {
@@ -96,6 +80,75 @@ class Analysed {
             baseClass = baseClass.getSuperclass();
         }
         return ret;
+    }
+
+    public String getClassContext() {
+        return classContext;
+    }
+
+    public void setClassContext(String classContext) {
+        this.classContext = classContext;
+    }
+
+    public List<Collect> getClassCollects() {
+        return classCollects;
+    }
+
+    public void setClassCollects(List<Collect> classCollects) {
+        this.classCollects = classCollects;
+    }
+
+    public Map<String, List<Collect>> getCollects() {
+        return collects;
+    }
+
+    public void setCollects(Map<String, List<Collect>> collects) {
+        this.collects = collects;
+    }
+
+    public Map<String, List<Execute>> getExecutes() {
+        return executes;
+    }
+
+    public void setExecutes(Map<String, List<Execute>> executes) {
+        this.executes = executes;
+    }
+
+    public Map<String, String> getVariables() {
+        return variables;
+    }
+
+    public void setVariables(Map<String, String> variables) {
+        this.variables = variables;
+    }
+
+    public List<String> getOtherFields() {
+        return otherFields;
+    }
+
+    public void setOtherFields(List<String> otherFields) {
+        this.otherFields = otherFields;
+    }
+
+    public CLASS_TYPE getClassType() {
+        return classType;
+    }
+
+    public void setClassType(CLASS_TYPE classType) {
+        this.classType = classType;
+    }
+
+    @Override
+    public String toString() {
+        return "Analysed{" +
+                "classType=" + classType +
+                ", classContext='" + classContext + '\'' +
+                ", classCollects=" + classCollects +
+                ", collects=" + collects +
+                ", executes=" + executes +
+                ", variables=" + variables +
+                ", otherFields=" + otherFields +
+                '}';
     }
 
     private List<Execute> analyse(String field, com.github.jpingus.Execute[] executes) {
@@ -133,20 +186,31 @@ class Analysed {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
 
         Analysed analysed = (Analysed) o;
 
-        if (classType != analysed.classType) return false;
+        if (classType != analysed.classType)
+            return false;
         if (classContext != null ? !classContext.equals(analysed.classContext) : analysed.classContext != null)
             return false;
         if (classCollects != null ? !classCollects.equals(analysed.classCollects) : analysed.classCollects != null)
             return false;
-        if (collects != null ? !collects.equals(analysed.collects) : analysed.collects != null) return false;
-        if (executes != null ? !executes.equals(analysed.executes) : analysed.executes != null) return false;
-        if (variables != null ? !variables.equals(analysed.variables) : analysed.variables != null) return false;
+        if (collects != null ? !collects.equals(analysed.collects) : analysed.collects != null)
+            return false;
+        if (executes != null ? !executes.equals(analysed.executes) : analysed.executes != null)
+            return false;
+        if (variables != null ? !variables.equals(analysed.variables) : analysed.variables != null)
+            return false;
         return otherFields != null ? otherFields.equals(analysed.otherFields) : analysed.otherFields == null;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(classType, classContext, classCollects, collects, executes, variables, otherFields);
     }
 
     void addCollectField(String field, String to, String when) {
@@ -176,10 +240,10 @@ class Analysed {
     }
 
     void prune() {
-        if (classCollects.isEmpty()) classCollects = null;
+        if (classCollects.isEmpty())
+            classCollects = null;
     }
 
     public enum CLASS_TYPE {ARRAY, LIST, MAP, ITERABLE, IGNORABLE, PROCESSABLE}
-
 
 }

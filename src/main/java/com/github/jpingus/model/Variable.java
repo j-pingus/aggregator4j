@@ -1,5 +1,6 @@
 package com.github.jpingus.model;
 
+
 import java.util.Objects;
 
 public class Variable {
@@ -11,6 +12,22 @@ public class Variable {
 
     public Variable(String field, String variable) {
         this.field = field;
+        this.variable = variable;
+    }
+
+    public String getField() {
+        return field;
+    }
+
+    public void setField(String field) {
+        this.field = field;
+    }
+
+    public String getVariable() {
+        return variable;
+    }
+
+    public void setVariable(String variable) {
         this.variable = variable;
     }
 
@@ -30,21 +47,5 @@ public class Variable {
         int result = field != null ? field.hashCode() : 0;
         result = 31 * result + (variable != null ? variable.hashCode() : 0);
         return result;
-    }
-
-    public String getVariable() {
-        return variable;
-    }
-
-    public void setVariable(String variable) {
-        this.variable = variable;
-    }
-
-    public String getField() {
-        return field;
-    }
-
-    public void setField(String field) {
-        this.field = field;
     }
 }

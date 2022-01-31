@@ -9,8 +9,6 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.github.jpingus.StringFunctions.isEmpty;
-
 public class Processor {
     private static final Log LOGGER = LogFactory.getLog(Processor.class);
     private static final Pattern THIS_FIELD_PATTERN = Pattern.compile("this\\.(\\w+)");
@@ -40,8 +38,9 @@ public class Processor {
     public static AggregatorContext process(Object o, String prefix, AggregatorContext aggregatorContext) {
         Map<String, List<ExecuteContext>> executors = new HashMap<>();
         aggregatorContext.set(prefix, o);
-        if (isEmpty(aggregatorContext.getPackageStart())) {
-            aggregatorContext.setPackageStart(o.getClass().getPackage().getName());
+        if (aggregatorContext.getPackageStarts() == null) {
+            aggregatorContext.setPackageStarts(
+                    Collections.singletonList(o.getClass().getPackage().getName()));
         }
         aggregatorContext.preProcess(o);
         process(prefix, o, aggregatorContext, executors);
@@ -62,18 +61,18 @@ public class Processor {
         Analysed analysed = localContext.getAnalysed(objectClass);
         ProcessTrace current = localContext.getProcessTrace();
         try {
-            if (!isEmpty(analysed.classContext)) {
-                localContext.setProcessTrace(localContext.getProcessTrace().traceContext(analysed.classContext));
+            if (!StringFunctions.isEmpty(analysed.getClassContext())) {
+                localContext.setProcessTrace(localContext.getProcessTrace().traceContext(analysed.getClassContext()));
                 executeContexts.values().stream()
                         .flatMap(Collection::stream)
                         .filter(Processor::notExecuted)
-                        .filter(e -> e.formula.contains(analysed.classContext + "."))
+                        .filter(e -> e.formula.contains(analysed.getClassContext() + "."))
                         .forEach(e -> execute(e, localContext));
-                localContext.cleanContext(analysed.classContext);
+                localContext.cleanContext(analysed.getClassContext());
             }
             int i = 0;
             String key;
-            switch (analysed.classType) {
+            switch (analysed.getClassType()) {
                 case MAP:
                     Map m = (Map) o;
                     key = prefix.replaceAll("\\.", "_") + "_";
@@ -112,36 +111,36 @@ public class Processor {
 
             }
             //Prepare the field execution
-            analysed.executes
+            analysed.getExecutes()
                     .forEach((field, executeList) -> executeList.forEach(execute -> {
                         if (applicable(o, execute.getWhen(), localContext)) {
                             addExecuteContext(executeContexts, prefix, field, execute.getJexl(), localContext);
                         }
                     }));
-            for (String field : analysed.variables.keySet()) {
-                localContext.addVariable(analysed.variables.get(field), get(o, field, localContext));
+            for (String field : analysed.getVariables().keySet()) {
+                localContext.addVariable(analysed.getVariables().get(field), get(o, field, localContext));
             }
             //First potentially seek deeper.
-            for (String field : analysed.otherFields) {
+            for (String field : analysed.getOtherFields()) {
                 process(prefix + "." + field, get(o, field, localContext), localContext,
                         executeContexts);
             }
             //Collect the fields
-            for (String field : analysed.collects.keySet()) {
+            for (String field : analysed.getCollects().keySet()) {
                 String add = prefix + "." + field;
                 Optional.ofNullable(executeContexts.get(add))
                         .orElse(Collections.emptyList()).stream().filter(Processor::notExecuted)
                         .forEach(e -> execute(e, localContext));
                 if (!isNull(o, field, localContext)) {
-                    for (com.github.jpingus.model.Collect collect : analysed.collects.get(field)) {
+                    for (com.github.jpingus.model.Collect collect : analysed.getCollects().get(field)) {
                         if (applicable(o, collect.getWhen(), localContext)) {
                             localContext.collect(evaluate(o, collect.getTo(), localContext), add);
                         }
                     }
                 }
             }
-            if (analysed.classCollects != null) {
-                for (com.github.jpingus.model.Collect collect : analysed.classCollects) {
+            if (analysed.getClassCollects() != null) {
+                for (com.github.jpingus.model.Collect collect : analysed.getClassCollects()) {
                     String formula = "(" + executeFieldsFromFormula(prefix, collect.getWhat(), executeContexts, localContext) + ")";
 
                     if (applicable(o, collect.getWhen(), localContext) && !isNull(formula, localContext)) {
@@ -194,7 +193,7 @@ public class Processor {
     }
 
     private static Object get(Object o, String fieldName, AggregatorContext localContext) {
-        if (isEmpty(fieldName) || fieldName.contains("$"))
+        if (StringFunctions.isEmpty(fieldName) || fieldName.contains("$"))
             return null;
         localContext.set("this", o);
         if (localContext.isDebug())
@@ -204,7 +203,7 @@ public class Processor {
     }
 
     private static String evaluate(Object o, String value, AggregatorContext localContext) {
-        if (isEmpty(value))
+        if (StringFunctions.isEmpty(value))
             return null;
         if (!value.startsWith("eval:")) {
             return value;
@@ -219,7 +218,7 @@ public class Processor {
     }
 
     private static boolean applicable(Object o, String when, AggregatorContext localContext) {
-        if (isEmpty(when))
+        if (StringFunctions.isEmpty(when))
             return true;
         localContext.set("this", o);
         Object evaluated = localContext.evaluate(when);
